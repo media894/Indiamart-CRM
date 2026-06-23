@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IndiaMART Lead CRM</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f7f5;--surface:#fff;--border:#e4e4e0;--border2:#d0d0cc;
+  --text:#1a1a18;--muted:#6b6b67;--hint:#9b9b97;
+  --purple:#534AB7;--purple-lt:#EEEDFE;--purple-dk:#3C3489;
+  --teal:#1D9E75;--teal-lt:#E1F5EE;
+  --amber:#BA7517;--amber-lt:#FAEEDA;
+  --blue:#185FA5;--blue-lt:#E6F1FB;
+  --red:#A32D2D;--red-lt:#FCEBEB;
+  --green:#3B6D11;--green-lt:#EAF3DE;
+  --gray:#5F5E5A;--gray-lt:#F1EFE8;
+  --radius:8px;--radius-lg:12px;
+  --shadow-sm:0 1px 2px rgba(20,20,15,.04);
+  --shadow-md:0 4px 16px rgba(20,20,15,.08);
+  --shadow-lg:0 16px 40px rgba(20,20,15,.14);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--purple);text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:var(--hint)}
+
+/* Layout */
+.shell{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sidebar-logo .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--purple),#7C74E0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(83,74,183,.35)}
+.sidebar-logo .logo-mark svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.2}
+.sidebar-logo h1{font-size:14.5px;font-weight:650;letter-spacing:-0.2px}
+.sidebar-logo p{font-size:11px;color:var(--muted);margin-top:1px}
+.sidebar-nav{padding:12px 8px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--muted);transition:background .15s,color .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--purple-lt);color:var(--purple-dk);font-weight:500}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge{margin-left:auto;background:var(--red-lt);color:var(--red);font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border)}
+.sync-btn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:500;background:var(--surface);transition:all .12s}
+.sync-btn:hover{background:var(--bg);box-shadow:var(--shadow-sm)}
+.sync-btn svg{width:14px;height:14px;stroke:var(--purple);fill:none;stroke-width:2}
+.off-btn{margin-top:8px;border-color:var(--red);color:var(--red)}
+.off-btn svg{stroke:currentColor}
+.off-btn.is-off{background:var(--red);color:#fff;border-color:var(--red)}
+.off-btn.is-off:hover{background:#852424}
+.off-btn.is-on{background:var(--teal-lt);color:var(--teal);border-color:#9FE1CB}
+.off-btn.is-on:hover{background:#d2f0e6}
+.sync-spin{animation:spin .8s linear infinite}
+
+.main{overflow:hidden;display:flex;flex-direction:column}
+.topbar{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface)}
+.topbar h2{font-size:16px;font-weight:600;flex:1}
+.topbar .topbar-sub{font-size:12px;color:var(--muted);margin-top:1px;font-weight:400}
+.view{display:none;flex:1;overflow-y:auto}
+.view.active{display:block;animation:fadein .15s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;cursor:pointer;background:var(--surface);color:var(--text);transition:all .12s;font-family:inherit}
+.btn:hover{background:var(--bg)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
+.btn.primary:hover{background:var(--purple-dk);box-shadow:0 2px 10px rgba(83,74,183,.3)}
+.btn.primary:disabled{background:var(--hint);border-color:var(--hint);cursor:not-allowed;box-shadow:none}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn.danger:hover{background:var(--red-lt)}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:20px 24px 0}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;transition:box-shadow .15s,transform .15s}
+.stat:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.stat-val{font-size:24px;font-weight:600;letter-spacing:-1px}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+
+/* Filters */
+.filters{display:flex;align-items:center;gap:8px;padding:16px 24px 12px;flex-wrap:wrap}
+.pill{padding:5px 12px;border-radius:20px;font-size:12px;border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--muted);transition:all .12s}
+.pill:hover{border-color:var(--border2);color:var(--text)}
+.pill.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.search-box{flex:1;max-width:280px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit}
+
+/* Lead table */
+.leads-table{margin:0 24px 24px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 14px;text-align:left;background:var(--bg);border-bottom:1px solid var(--border);font-weight:500}
+td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px}
+tr:last-child td{border-bottom:none}
+tr{transition:background .1s}
+tr:hover td{background:var(--bg)}
+.lead-name-cell{font-weight:500;cursor:pointer}
+.lead-name-cell:hover{color:var(--purple-dk);text-decoration:underline}
+.lead-sub{font-size:11px;color:var(--muted);margin-top:1px}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge.hot{background:var(--amber-lt);color:var(--amber)}
+.badge.warm{background:var(--blue-lt);color:var(--blue)}
+.badge.cold{background:var(--gray-lt);color:var(--gray)}
+.badge.new{background:var(--green-lt);color:var(--green)}
+.badge.client{background:var(--teal-lt);color:var(--teal)}
+.badge.lost{background:var(--red-lt);color:var(--red)}
+.badge.prospect{background:var(--purple-lt);color:var(--purple-dk)}
+.badge.replied{background:var(--blue-lt);color:var(--blue)}
+.badge.negotiating{background:var(--amber-lt);color:var(--amber)}
+
+/* Validation badges (email/phone check) */
+.valid-chip{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.2px;vertical-align:middle;margin-left:6px}
+.valid-chip.ok{background:var(--green-lt);color:var(--green)}
+.valid-chip.bad{background:var(--red-lt);color:var(--red)}
+.valid-chip svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+
+/* Score bar */
+.score-wrap{display:flex;align-items:center;gap:6px}
+.score-bar{height:5px;width:60px;background:var(--bg);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px}
+.score-num{font-size:12px;font-weight:500}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(20,20,18,.4);backdrop-filter:blur(2px);z-index:1000;align-items:center;justify-content:center}
+.overlay.open{display:flex;animation:overlayin .15s ease}
+@keyframes overlayin{from{opacity:0}to{opacity:1}}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:min(580px,95vw);max-height:90vh;overflow-y:auto;position:relative;box-shadow:var(--shadow-lg);animation:modalin .18s cubic-bezier(.2,.8,.3,1)}
+@keyframes modalin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;border-radius:6px;transition:background .12s}
+.modal-close:hover{color:var(--text);background:var(--bg)}
+.modal-close svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Bulk mail */
+.group-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.group-card{border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 10px;text-align:center;cursor:pointer;background:var(--surface);transition:all .14s;user-select:none}
+.group-card:hover{border-color:var(--border2);box-shadow:var(--shadow-sm)}
+.group-card.checked{border-color:var(--purple);background:var(--purple-lt);box-shadow:0 0 0 3px rgba(83,74,183,.1)}
+.group-card .g-emoji{font-size:20px;margin-bottom:4px}
+.group-card .g-count{font-size:20px;font-weight:650;letter-spacing:-.5px}
+.group-card .g-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
+.group-card.checked .g-label{color:var(--purple-dk)}
+.group-card .g-check{position:absolute;top:8px;right:8px;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border2);background:var(--surface)}
+.group-card{position:relative}
+.group-card.checked .g-check{background:var(--purple);border-color:var(--purple)}
+.group-card.checked .g-check::after{content:'';display:block;width:5px;height:5px;margin:4.5px auto 0;border-radius:1px}
+.group-card.checked .g-check{display:flex;align-items:center;justify-content:center}
+.group-card.checked .g-check svg{width:10px;height:10px;stroke:#fff;stroke-width:3;fill:none}
+
+.recipient-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;font-size:12.5px}
+.recipient-bar b{color:var(--purple-dk)}
+.recipient-list{max-height:130px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px}
+.recipient-row{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12.5px;border-bottom:1px solid var(--border)}
+.recipient-row:last-child{border-bottom:none}
+.recipient-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--purple);cursor:pointer}
+.recipient-row .rr-name{font-weight:500;flex:1}
+.recipient-row .rr-email{color:var(--muted)}
+.placeholder-tags{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 14px}
+.ph-tag{font-size:11px;padding:3px 8px;border-radius:6px;background:var(--gray-lt);color:var(--gray);cursor:pointer;border:1px solid var(--border);font-family:ui-monospace,Menlo,monospace;transition:all .1s}
+.ph-tag:hover{background:var(--purple-lt);color:var(--purple-dk);border-color:var(--purple)}
+.bulk-progress{display:none;align-items:center;gap:10px;padding:10px 14px;background:var(--purple-lt);border-radius:var(--radius);margin-bottom:14px;font-size:12.5px;color:var(--purple-dk)}
+.bulk-progress.show{display:flex}
+.spinner{width:14px;height:14px;border:2px solid var(--purple-lt);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.bulk-results{margin-top:14px}
+.bulk-result-row{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;border-radius:6px}
+.bulk-result-row.ok{background:var(--teal-lt);color:var(--teal)}
+.bulk-result-row.fail{background:var(--red-lt);color:var(--red)}
+.bulk-result-row svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0}
+
+/* Form */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit;transition:border .12s,box-shadow .12s}
+.pw-wrap{position:relative;display:flex;align-items:center}
+.pw-wrap input{padding-right:36px!important}
+.pw-toggle{position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:0;line-height:1;display:flex;align-items:center}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(83,74,183,.12)}
+.field textarea{resize:vertical;min-height:90px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* AI qualify card */
+.ai-card{background:var(--purple-lt);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px}
+.ai-summary{font-size:13px;line-height:1.6;color:var(--purple-dk);border-left:2px solid var(--purple);padding-left:10px;margin:10px 0}
+.strength-list,.risk-list{font-size:12px;margin:4px 0}
+.strength-list li{color:var(--green)}
+.risk-list li{color:var(--red)}
+
+/* Email thread */
+.email-thread{display:flex;flex-direction:column;gap:10px}
+.email-msg{padding:12px 14px;border-radius:var(--radius);border:1px solid var(--border)}
+.email-msg.sent{background:var(--purple-lt);border-color:#CEC BF6}
+.email-msg.received{background:var(--teal-lt);border-color:#9FE1CB}
+.email-meta{font-size:11px;color:var(--muted);margin-bottom:4px}
+.email-subject{font-weight:500;font-size:13px;margin-bottom:4px}
+.email-body{font-size:13px;line-height:1.6;white-space:pre-wrap}
+
+/* Followup */
+.fu-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:var(--radius);background:var(--surface);margin-bottom:8px;transition:box-shadow .15s}
+.fu-row:hover{box-shadow:var(--shadow-sm)}
+.fu-overdue{border-color:var(--red);border-left-color:var(--red);background:var(--red-lt)}
+.fu-today{border-color:var(--amber);border-left-color:var(--amber);background:var(--amber-lt)}
+.fu-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+
+/* Settings */
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+.settings-title{font-size:14px;font-weight:600;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+
+/* Upload area */
+.upload-area{border:2px dashed var(--border2);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;transition:all .12s}
+.upload-area:hover{border-color:var(--purple);background:var(--purple-lt)}
+.upload-preview{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);margin-top:8px;font-size:12px}
+.upload-preview img{max-height:40px;border-radius:4px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .25s}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:var(--teal)}
+.toast.error{background:var(--red)}
+
+/* Empty state */
+.empty{text-align:center;padding:48px;color:var(--muted)}
+.empty svg{width:40px;height:40px;stroke:var(--hint);fill:none;stroke-width:1.5;margin-bottom:12px}
+
+.email-msg:hover { border-color: var(--purple) !important; background: var(--purple-lt) !important; box-shadow: var(--shadow-sm); }
+.email-msg.expanded .email-body { max-height: 3000px !important; }
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes actpulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.5;transform:scale(1.3)}
+}
+
+/* Activity feed cards */
+.act-card{
+  display:flex;gap:12px;align-items:flex-start;
+  background:var(--surface);border:1px solid var(--border);
+  border-left:4px solid var(--border2);
+  border-radius:var(--radius);padding:12px 14px;
+  transition:box-shadow .15s;
+  animation:alertin .2s ease;
+}
+.act-card:hover{box-shadow:var(--shadow-sm)}
+.act-card.new-lead{border-left-color:var(--teal)}
+.act-card.email-sent{border-left-color:var(--purple)}
+.act-card.email-failed{border-left-color:var(--red)}
+.act-card.sync{border-left-color:var(--blue)}
+.act-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.act-card.new-lead .act-icon{background:var(--teal-lt)}
+.act-card.email-sent .act-icon{background:var(--purple-lt)}
+.act-card.email-failed .act-icon{background:var(--red-lt)}
+.act-card.sync .act-icon{background:var(--blue-lt)}
+.act-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.act-detail{font-size:12px;color:var(--muted);line-height:1.4}
+.act-time{font-size:10.5px;color:var(--hint);margin-top:4px}
+
+/* Notifications styles */
+.notif-bell-container{position:relative;margin-left:auto;display:flex;align-items:center}
+.notif-bell-btn{background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.notif-bell-btn:hover{background:var(--bg);color:var(--text)}
+.notif-bell-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.notif-badge{position:absolute;top:0;right:0;background:var(--red);color:#fff;font-size:10px;font-weight:600;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--surface)}
+.notif-dropdown{display:none;position:absolute;top:100%;right:0;margin-top:8px;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:999;max-height:400px;overflow-y:auto}
+.notif-dropdown.open{display:block;animation:fadein .15s ease}
+.notif-dropdown-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:600}
+.notif-clear-btn{background:none;border:none;color:var(--purple);font-size:11px;font-weight:500;cursor:pointer}
+.notif-clear-btn:hover{text-decoration:underline}
+.notif-dropdown-list{padding:4px 0}
+.notif-item{display:flex;flex-direction:column;gap:3px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--bg)}
+.notif-item.unread{background:var(--purple-lt)}
+.notif-item-meta{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted)}
+.notif-item-title{font-weight:600;font-size:12px;color:var(--text)}
+.notif-item-body{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Floating Alerts Container */
+.floating-alerts-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.floating-alert{background:var(--surface);border-left:4px solid var(--purple);border-radius:var(--radius);padding:12px 16px;width:300px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:4px;pointer-events:auto;animation:alertin .25s cubic-bezier(.2,.8,.3,1);transition:all .2s;position:relative}
+@keyframes alertin{from{opacity:0;transform:translateX(50px) scale(.95)}to{opacity:1;transform:translateX(0) scale(1)}}
+.floating-alert-close{position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;color:var(--hint);font-size:14px;line-height:1}
+.floating-alert-close:hover{color:var(--text)}
+.floating-alert-title{font-size:12.5px;font-weight:650;color:var(--text);padding-right:16px}
+.floating-alert-body{font-size:11.5px;color:var(--muted);line-height:1.4;margin:2px 0}
+.floating-alert-btn{align-self:flex-start;font-size:11px;font-weight:600;color:var(--purple);background:none;border:none;cursor:pointer;padding:2px 0}
+.floating-alert-btn:hover{text-decoration:underline}
+
+/* Notification Bell Animation when ringing */
+@keyframes ringbell{
+  0%{transform:rotate(0)}
+  10%{transform:rotate(15deg)}
+  20%{transform:rotate(-15deg)}
+  30%{transform:rotate(10deg)}
+  40%{transform:rotate(-10deg)}
+  50%{transform:rotate(5deg)}
+  60%{transform:rotate(-5deg)}
+  100%{transform:rotate(0)}
+}
+.notif-bell-ring{animation:ringbell 0.6s ease;transform-origin:top center}
+
+
+/* Responsive */
+@media (max-width:880px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:sticky;top:0;z-index:50;flex-direction:row;align-items:center;border-right:none;border-bottom:1px solid var(--border);overflow-x:auto}
+  .sidebar-logo{border-bottom:none;border-right:1px solid var(--border);flex-shrink:0}
+  .sidebar-nav{display:flex;padding:8px;flex:none}
+  .nav-item{width:auto;white-space:nowrap}
+  .sidebar-footer{border-top:none;border-left:1px solid var(--border);flex-shrink:0}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .group-grid{grid-template-columns:repeat(2,1fr)}
+  .row2,.row3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+    <div>
+      <h1>IndiaMART CRM</h1>
+      <p>Lead qualification hub</p>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" onclick="nav('leads',this)">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      All Leads
+      <span class="nav-badge" id="badge-total">0</span>
+    </button>
+    <button class="nav-item" onclick="nav('qualify',this)">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      AI Qualify
+    </button>
+    <button class="nav-item" onclick="nav('inbox',this)">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Email Inbox
+      <span class="nav-badge" id="badge-inbox" style="display:none">!</span>
+    </button>
+    <button class="nav-item" onclick="nav('bulkmail',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      Bulk Mail
+    </button>
+    <button class="nav-item" onclick="nav('followups',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Followups
+      <span class="nav-badge" id="badge-fu" style="display:none">!</span>
+    </button>
+    <button class="nav-item" onclick="nav('export',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+
+
+
+  </nav>
+  <div class="sidebar-footer">
+    <button class="sync-btn" onclick="syncIndiaMART()">
+      <svg id="sync-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <span id="sync-label">Sync IndiaMART</span>
+    </button>
+    <button class="sync-btn off-btn" id="automation-off-btn" onclick="toggleAutomation()">
+      <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      <span id="automation-off-label">Off</span>
+    </button>
+    <div id="sync-status" style="font-size:11px;color:var(--muted);padding:6px 4px 0;display:none"></div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+
+<!-- ── Leads view ── -->
+<div class="view active" id="view-leads">
+  <div class="topbar">
+    <h2>All Leads</h2>
+    <div style="display:flex;gap:8px">
+      <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="uploadExcelFile(this)">
+      <button class="btn sm" onclick="document.getElementById('excel-file-input').click()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Excel
+      </button>
+      <button class="btn sm" onclick="openAddLead()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add lead
+      </button>
+    </div>
+  </div>
+  <div class="stats" id="stats-bar"></div>
+  <div class="filters">
+    <button class="pill active" onclick="setFilter('All',this)">All</button>
+    <button class="pill" onclick="setFilter('Hot',this)">🔥 Hot</button>
+    <button class="pill" onclick="setFilter('Warm',this)">☀️ Warm</button>
+    <button class="pill" onclick="setFilter('Cold',this)">❄️ Cold</button>
+    <button class="pill" onclick="setFilter('New',this)">✦ New</button>
+    <button class="pill" onclick="setFilter('Client',this)">✅ Client</button>
+    <input class="search-box" type="text" placeholder="Search name, company, product…" oninput="renderLeads()">
+  </div>
+  <div class="leads-table">
+    <table>
+      <thead><tr>
+        <th>Lead</th><th>Product / Message</th><th>Location</th>
+        <th>AI Score</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="leads-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── AI Qualify view ── -->
+<div class="view" id="view-qualify">
+  <div class="topbar">
+    <h2>AI Lead Qualification</h2>
+    <button class="btn primary" id="score-all-btn" onclick="scoreAllLeads()">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span id="score-all-label">All Score</span>
+    </button>
+  </div>
+  <div style="padding:20px 24px">
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Click <strong>Score</strong> on any lead to have AI analyse and score them. Results auto-save.</p>
+    <div id="score-all-progress" style="display:none;align-items:center;gap:10px;background:var(--purple-lt);border:1px solid #d8d5fb;color:var(--purple-dk);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:13px;font-weight:500">
+      <div class="spinner" style="display:block"></div>
+      <span id="score-all-progress-text">Scoring leads...</span>
+    </div>
+    <!-- Quota error notice (hidden by default) -->
+    <div id="qualify-quota-notice" style="display:none;align-items:flex-start;gap:12px;background:#fff8ec;border:1px solid #f5c842;border-left:4px solid #f5a623;border-radius:8px;padding:14px 16px;margin-bottom:16px">
+      <svg style="width:18px;height:18px;flex-shrink:0;margin-top:1px;stroke:#b87a00;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div style="flex:1;font-size:13px;color:#7a5300">
+        <strong>Gemini API Quota Exceeded</strong><br>
+        <span id="qualify-quota-msg" style="color:#8a6000">All free-tier Gemini models hit their rate limit.</span><br>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://aistudio.google.com/apikey" target="_blank" class="btn sm primary" style="font-size:12px">Get new API key</a>
+          <a href="https://aistudio.google.com/" target="_blank" class="btn sm" style="font-size:12px">Check quota usage</a>
+          <button class="btn sm" style="font-size:12px" onclick="document.getElementById('qualify-quota-notice').style.display='none'">Dismiss</button>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">💡 Tip: Free tier allows ~15 requests/minute. Wait 60 seconds then retry, or use a second Google account to get a fresh key.</div>
+      </div>
+    </div>
+    <div id="qualify-list"></div>
+  </div>
+</div>
+
+<!-- ── Email Inbox view ── -->
+<div class="view" id="view-inbox">
+  <div class="topbar">
+    <h2>Email Inbox</h2>
+    <div style="display:flex;gap:8px">
+      <button class="btn sm" onclick="markAllRepliesAsRead(event)">
+        Mark all read
+      </button>
+      <button class="btn sm primary" onclick="openReplyModal()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Log reply
+      </button>
+    </div>
+  </div>
+  <div style="padding:20px 24px" id="inbox-list"></div>
+</div>
+
+<!-- ── Bulk Mail view ── -->
+<div class="view" id="view-bulkmail">
+  <div class="topbar">
+    <div>
+      <h2>Bulk Mail</h2>
+      <div class="topbar-sub">Send one email to every lead in a quality group</div>
+    </div>
+  </div>
+  <div style="padding:20px 24px">
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">1. Pick lead group(s)</div>
+    <div class="group-grid" id="bulk-group-grid"></div>
+
+    <div class="recipient-bar">
+      <span><b id="bulk-recipient-count">0</b> leads will receive this email</span>
+      <button class="btn sm" onclick="toggleRecipientList()" id="bulk-toggle-list-btn">Show / edit list</button>
+    </div>
+    <div class="recipient-list" id="bulk-recipient-list" style="display:none"></div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:18px 0 10px">2. Compose</div>
+    <div class="field"><label>Subject</label><input id="bulk-subject"></div>
+    <div class="field"><label>Body</label><textarea id="bulk-body" style="min-height:160px"></textarea></div>
+
+    <div class="field" style="margin-top:10px">
+      <label>Attachments</label>
+      <div style="display:flex;gap:16px;margin-top:6px">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:normal;cursor:pointer">
+          <input type="checkbox" id="bulk-attach-pdf" checked> Attach Portfolio PDF
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:normal;cursor:pointer">
+          <input type="checkbox" id="bulk-attach-gif" checked> Attach Signature GIF
+        </label>
+      </div>
+    </div>
+
+    <div class="bulk-progress" id="bulk-progress"><div class="spinner"></div><span id="bulk-progress-text">Sending…</span></div>
+
+    <button class="btn primary" id="bulk-send-btn" onclick="sendBulkEmail()">
+      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      <span id="bulk-send-label">Send to group</span>
+    </button>
+
+    <div class="bulk-results" id="bulk-results"></div>
+  </div>
+</div>
+
+<!-- ── Followups view ── -->
+<div class="view" id="view-followups">
+  <div class="topbar">
+    <h2>Scheduled Followups</h2>
+  </div>
+  <div style="padding:20px 24px">
+    <div id="followup-list"></div>
+  </div>
+</div>
+
+<!-- ── Export view ── -->
+<div class="view" id="view-export">
+  <div class="topbar"><h2>Export Data</h2></div>
+  <div style="padding:20px 24px">
+    <div class="settings-section">
+      <div class="settings-title">Download CSV</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Export all leads, scores, and email statuses to a CSV file.</p>
+      <button class="btn primary" onclick="downloadCSV()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download CSV
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+</main>
+
+<!-- View / Edit Lead modal -->
+<div class="overlay" id="modal-lead">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-lead-title">Add Lead</span>
+      <button class="modal-close" onclick="closeModal('lead')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Name *</label><input id="f-name"></div>
+      <div class="field"><label>Company</label><input id="f-company"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Email *</label><input id="f-email" type="email"></div>
+      <div class="field"><label>Phone</label><input id="f-phone"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>City</label><input id="f-city"></div>
+      <div class="field"><label>State</label><input id="f-state"></div>
+      <div class="field"><label>Source</label><select id="f-source"><option>Manual</option><option>IndiaMART</option><option>Referral</option><option>Website</option></select></div>
+    </div>
+    <div class="field"><label>Product / Service enquired</label><input id="f-product"></div>
+    <div class="field"><label>Message / Notes</label><textarea id="f-message"></textarea></div>
+    <div class="row2">
+      <div class="field"><label>Client Status</label>
+        <select id="f-clientstatus">
+          <option value="New">New</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Replied in IndiaMART">Replied in IndiaMART</option>
+          <option value="Negotiating">Negotiating</option>
+          <option value="Client">Client</option>
+          <option value="Lost">Lost</option>
+        </select>
+      </div>
+      <div class="field"><label>Lead Quality</label>
+        <select id="f-status">
+          <option value="New">New</option><option value="Hot">Hot</option>
+          <option value="Warm">Warm</option><option value="Cold">Cold</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn" onclick="closeModal('lead')">Cancel</button>
+      <button class="btn primary" onclick="saveLead()">Save lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Lead Detail -->
+<div class="overlay" id="modal-detail">
+  <div class="modal" id="detail-content" style="max-width:640px"></div>
+</div>
+
+<!-- Send Email -->
+<div class="overlay" id="modal-email">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title">Compose Email</span>
+      <button class="modal-close" onclick="closeModal('email')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="field"><label>To</label><input id="e-to" readonly style="opacity:.7"></div>
+    <div class="field"><label>Subject</label><input id="e-subject"></div>
+    <div class="field"><label>Body</label><textarea id="e-body" style="min-height:150px"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal('email')">Cancel</button>
+      <button class="btn primary" onclick="sendEmail()">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Send / Log email
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Log Reply -->
+<div class="overlay" id="modal-reply">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Log Incoming Reply</span>
+      <button class="modal-close" onclick="closeModal('reply')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="field"><label>Lead</label>
+      <select id="r-lead"></select>
+    </div>
+    <div class="field"><label>Subject</label><input id="r-subject"></div>
+    <div class="field"><label>Reply content</label><textarea id="r-body"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn" onclick="closeModal('reply')">Cancel</button>
+      <button class="btn primary" onclick="logReply()">Log reply</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let leads = [], emails = [], followups = [];
+let filterStatus = 'All', editLeadId = null, emailLeadId = null;
+let isScoringAll = false;
+let automationEnabled = true;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+// Initialized at the end of the script
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
+function nav(view, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  btn.classList.add('active');
+  if (view==='qualify') renderQualify();
+  if (view==='inbox') renderInbox();
+  if (view==='followups') renderFollowups();
+  if (view==='bulkmail') renderBulkMail();
+
+}
+
+// ─── Sync IndiaMART ───────────────────────────────────────────────────────────
+async function syncIndiaMART() {
+  if (!automationEnabled) {
+    toast('Automation is OFF. Turn ON to sync IndiaMART leads.', 'error');
+    const status = document.getElementById('sync-status');
+    status.style.display='block';
+    status.textContent='Automation OFF - IndiaMART sync stopped';
+    return;
+  }
+  const icon = document.getElementById('sync-icon');
+  const label = document.getElementById('sync-label');
+  const status = document.getElementById('sync-status');
+  icon.classList.add('sync-spin'); label.textContent = 'Syncing…'; status.style.display='block'; status.textContent='Fetching from IndiaMART…';
+  try {
+    const r = await fetch(`${API}/indiamart/leads`);
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); status.textContent = '❌ '+d.error; }
+    else {
+      leads = d.leads || leads;
+      status.textContent = `✓ ${d.added} new leads added (${d.total} total fetched)`;
+      toast(`${d.added} new leads from IndiaMART`, 'success');
+      renderAll();
+    }
+    status.textContent = 'Syncing Gmail replies...';
+    await syncGmailReplies(false);
+    status.textContent = 'Sync complete';
+  } catch(e) { toast('Server not reachable. Is the backend running?', 'error'); status.textContent='❌ Cannot reach server'; }
+  icon.classList.remove('sync-spin'); label.textContent='Sync IndiaMART';
+}
+
+async function loadAutomationState() {
+  const settings = await fetch(`${API}/settings`).then(r=>r.json()).catch(()=>({}));
+  automationEnabled = settings.indiamartSyncEnabled !== false && settings.autoResponseEnabled !== false;
+  renderAutomationButton();
+}
+
+function renderAutomationButton() {
+  const btn = document.getElementById('automation-off-btn');
+  const label = document.getElementById('automation-off-label');
+  if (!btn || !label) return;
+  btn.classList.toggle('is-off', !automationEnabled);
+  btn.classList.toggle('is-on', automationEnabled);
+  label.textContent = automationEnabled ? 'Off' : 'On';
+  btn.title = automationEnabled
+    ? 'Turn OFF lead fetch, mail, replies and followups'
+    : 'Turn ON lead fetch, mail, replies and followups';
+}
+
+async function toggleAutomation() {
+  const nextMode = automationEnabled ? 'off' : 'on';
+  const btn = document.getElementById('automation-off-btn');
+  const label = document.getElementById('automation-off-label');
+  if (btn) btn.disabled = true;
+  if (label) label.textContent = nextMode === 'off' ? 'Turning off...' : 'Turning on...';
+
+  try {
+    const r = await fetch(`${API}/automation/${nextMode}`, { method: 'POST' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    automationEnabled = d.enabled;
+    renderAutomationButton();
+    const status = document.getElementById('sync-status');
+    status.style.display='block';
+    status.textContent = automationEnabled
+      ? 'Webapp ON - lead fetch, mail, replies and followups active'
+      : 'Webapp OFF - lead fetch, mail, replies and followups stopped';
+    toast(automationEnabled ? 'Webapp turned ON' : 'Webapp turned OFF', 'success');
+    renderAll();
+    if (document.getElementById('view-bulkmail').classList.contains('active')) renderBulkMail();
+    if (document.getElementById('view-followups').classList.contains('active')) renderFollowups();
+  } catch(e) {
+    toast('Automation change failed: '+e.message, 'error');
+    renderAutomationButton();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function requireAutomationOn(action = 'This action') {
+  if (automationEnabled) return true;
+  toast(`${action} is stopped because webapp is OFF. Click On to continue.`, 'error');
+  return false;
+}
+
+// ─── Render leads ─────────────────────────────────────────────────────────────
+async function apiJson(url, options) {
+  const response = await fetch(url, options);
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(response.ok ? 'Server returned invalid JSON' : `API route not found (${response.status}). Restart backend.`);
+  }
+}
+
+function renderAll() { renderStats(); renderLeads(); checkBadges(); }
+
+function renderStats() {
+  const hot=leads.filter(l=>l.status==='Hot').length;
+  const warm=leads.filter(l=>l.status==='Warm').length;
+  const clients=leads.filter(l=>l.clientStatus==='Client').length;
+  const replied=leads.filter(l=>l.clientStatus==='Replied' || l.clientStatus==='Replied in IndiaMART').length;
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat"><div class="stat-val">${leads.length}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--amber)">${hot}</div><div class="stat-lbl">Hot</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--blue)">${warm}</div><div class="stat-lbl">Warm</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--teal)">${clients}</div><div class="stat-lbl">Clients</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--purple)">${replied}</div><div class="stat-lbl">Replied</div></div>
+  `;
+  document.getElementById('badge-total').textContent = leads.length;
+}
+
+// ─── Lead data validation (email format + intl phone format) ──────────────────
+function isValidEmail(email) {
+  if (!email) return false;
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  return re.test(String(email).trim());
+}
+function isValidPhone(phone) {
+  if (!phone) return false;
+  const cleaned = String(phone).trim().replace(/[\s\-().]/g, '');
+  const re = /^\+?\d{8,15}$/;
+  return re.test(cleaned);
+}
+function validityChip(ok) {
+  return ok
+    ? `<span class="valid-chip ok" title="Looks valid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Valid</span>`
+    : `<span class="valid-chip bad" title="Format looks invalid"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Invalid</span>`;
+}
+function emailValidationBadge(l) {
+  if (!l.email) return '';
+  if (l.emailValid === true) {
+    return `<span class="valid-chip ok" title="${l.emailReason || 'Valid format and MX domain records found'}"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Valid</span>`;
+  }
+  if (l.emailValid === false) {
+    return `<span class="valid-chip bad" title="${l.emailReason || 'Verification failed: invalid email format or domain'}"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Bounce Back</span>`;
+  }
+  const ok = isValidEmail(l.email);
+  return ok
+    ? `<span class="valid-chip ok" style="opacity: 0.7" title="Format valid (DNS validation pending sync)"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Format OK</span>`
+    : `<span class="valid-chip bad" title="Invalid format"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Bounce Back</span>`;
+}
+
+function statusBadge(s) {
+  const map={Hot:'hot',Warm:'warm',Cold:'cold',New:'new',Client:'client',Lost:'lost',Prospect:'prospect',Replied:'replied',Negotiating:'negotiating'};
+  return `<span class="badge ${map[s]||'new'}">${s||'New'}</span>`;
+}
+
+function scoreHtml(score) {
+  if (score==null) return '<span style="color:var(--hint);font-size:12px">—</span>';
+  const fill = score>=70?'var(--teal)':score>=40?'var(--blue)':'var(--red)';
+  return `<div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:${score}%;background:${fill}"></div></div><span class="score-num" style="color:${fill}">${score}</span></div>`;
+}
+
+function formatLeadTime(value) {
+  if (!value) return 'Time not available';
+  const raw = String(value).trim();
+  let d = new Date(raw);
+  if (Number.isNaN(d.getTime())) d = new Date(raw.replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+function renderLeads() {
+  const q = document.querySelector('.search-box')?.value?.toLowerCase()||'';
+  let filtered = leads.filter(l => {
+    if (filterStatus!=='All' && l.status!==filterStatus && l.clientStatus!==filterStatus) return false;
+    if (q && !`${l.name} ${l.company} ${l.product} ${l.email}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('leads-tbody');
+  if (!filtered.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>No leads found</p></div></td></tr>`; return; }
+  tbody.innerHTML = filtered.map(l=>`
+    <tr>
+      <td>
+        <div class="lead-name-cell" onclick="viewLead('${l.id}')">${l.name}</div>
+        <div class="lead-sub" style="margin-top:2px">
+          ${l.company||''} ${l.email?`· ${l.email} ${emailValidationBadge(l)}`:''}
+        </div>
+        <div class="lead-sub" style="margin-top:2px;color:var(--purple-dk);font-weight:500">
+          Lead time: ${formatLeadTime(l.createdAt)}
+        </div>
+        ${l.phone?`
+          <div class="lead-sub" style="display:flex;align-items:center;gap:4px;margin-top:2px">
+            <span>📞 ${l.phone}</span>
+            ${(() => {
+              const st = l.phoneStatus || '';
+              const isVerified = l.phoneValid !== false && st && !st.includes('Format Check') && !st.includes('Format check') && !st.includes('Format Only');
+              const isFormatOnly = l.phoneValid !== false && st && (st.includes('Format Check') || st.includes('Format check') || st.includes('Format Only') || st.includes('Format valid') || st.includes('API key'));
+              const isInvalid = l.phoneValid === false;
+              if (!st) return '';
+              if (isInvalid) return `<span style="color:var(--red);font-size:10.5px;font-weight:600" title="${st}">❌ Disconnected</span>`;
+              if (isFormatOnly) return `<span style="color:var(--amber);font-size:10.5px;font-weight:600" title="Format check only — not carrier verified: ${st}">⚠️ Format Only</span>`;
+              return `<span style="color:var(--teal);font-size:10.5px;font-weight:600" title="${st}">✓ Verified Active</span>`;
+            })()}
+          </div>
+          ${(l.phoneLocation || l.phoneCarrier) ? `
+            <div class="lead-sub" style="color:var(--green);font-size:11.5px;font-weight:550;margin-top:2px;display:flex;align-items:center;gap:3px">
+              <svg style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>${l.phoneLocation || 'India'}${l.phoneCarrier ? ` (${l.phoneCarrier})` : ''}</span>
+            </div>
+          ` : ''}
+
+        `:''}
+      </td>
+      <td>
+        <div style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:12px">${l.product||'—'}</div>
+        <div style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px">${(l.message||'').slice(0,60)}</div>
+      </td>
+      <td style="font-size:12px;color:var(--muted)">${[l.city,l.state].filter(Boolean).join(', ')||'—'}</td>
+      <td>${scoreHtml(l.score)}</td>
+      <td>
+        <select style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)" onchange="updateClientStatus('${l.id}',this.value)">
+          ${['New','Contacted','Replied in IndiaMART','Negotiating','Client','Lost'].map(s=>`<option value="${s}" ${l.clientStatus===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn sm" title="View detail" onclick="viewLead('${l.id}')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="btn sm" title="Send email" onclick="openEmail('${l.id}')"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></button>
+          <button class="btn sm" title="AI Score" onclick="qualify('${l.id}')"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+          <button class="btn sm" title="Edit" onclick="editLead('${l.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="btn sm danger" title="Delete" onclick="deleteLead('${l.id}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function setFilter(s, btn) {
+  filterStatus = s;
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  renderLeads();
+}
+
+// ─── Lead CRUD ────────────────────────────────────────────────────────────────
+function openAddLead() { editLeadId=null; clearForm(); document.getElementById('modal-lead-title').textContent='Add Lead'; openModal('lead'); }
+function editLead(id) {
+  const l=leads.find(x=>x.id===id);editLeadId=id;
+  document.getElementById('modal-lead-title').textContent='Edit Lead';
+  ['name','company','email','phone','city','state','product','message'].forEach(k=>{ const el=document.getElementById('f-'+k); if(el) el.value=l[k]||''; });
+  document.getElementById('f-source').value=l.source||'Manual';
+  document.getElementById('f-status').value=l.status||'New';
+  document.getElementById('f-clientstatus').value=l.clientStatus||'Prospect';
+  openModal('lead');
+}
+function clearForm() { ['name','company','email','phone','city','state','product','message'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value='';}); }
+
+async function saveLead() {
+  const btn = document.querySelector('#modal-lead .btn.primary');
+  const originalText = btn.textContent;
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    const name=document.getElementById('f-name').value.trim();
+    const email=document.getElementById('f-email').value.trim();
+    if (!name||!email) { toast('Name and email required','error'); return; }
+    const body={name,company:document.getElementById('f-company').value,email,phone:document.getElementById('f-phone').value,city:document.getElementById('f-city').value,state:document.getElementById('f-state').value,product:document.getElementById('f-product').value,message:document.getElementById('f-message').value,source:document.getElementById('f-source').value,status:document.getElementById('f-status').value,clientStatus:document.getElementById('f-clientstatus').value};
+    let r;
+    if (editLeadId) {
+      r=await fetch(`${API}/leads/${editLeadId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+      const i=leads.findIndex(l=>l.id===editLeadId); leads[i]=r;
+    } else {
+      r=await fetch(`${API}/leads`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+      leads.unshift(r);
+    }
+    closeModal('lead'); renderAll(); toast('Lead saved','success');
+  } catch (err) {
+    console.error(err);
+    toast('Error saving lead', 'error');
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+async function deleteLead(id) {
+  if(!confirm('Delete this lead?')) return;
+  await fetch(`${API}/leads/${id}`,{method:'DELETE'});
+  leads=leads.filter(l=>l.id!==id);
+  renderAll(); toast('Lead deleted');
+}
+
+async function updateClientStatus(id, val) {
+  try {
+    const r=await fetch(`${API}/leads/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientStatus:val})}).then(x=>x.json());
+    const i=leads.findIndex(l=>l.id===id);
+    if(i>=0 && r && r.id) leads[i]=r; else if(i>=0) leads[i]={...leads[i],clientStatus:val};
+    renderStats(); toast(`Status → ${val}`,'success');
+  } catch(e) {
+    const i=leads.findIndex(l=>l.id===id);
+    if(i>=0) leads[i]={...leads[i],clientStatus:val};
+    renderStats(); toast(`Status → ${val}`,'success');
+  }
+}
+
+// ─── View lead detail ─────────────────────────────────────────────────────────
+function viewLead(id) {
+  const l=leads.find(x=>x.id===id);
+  const le=emails.filter(e=>e.leadId===id).sort((a,b)=>new Date(b.sentAt||b.receivedAt)-new Date(a.sentAt||a.receivedAt));
+  const fu=followups.find(f=>f.leadId===id);
+  const sentCount=le.filter(e=>e.direction==='sent').length;
+  const repliedCount=le.filter(e=>e.direction==='received').length;
+  const lastEmail=le[0];
+  let mailStatusHtml;
+  if (!le.length) {
+    mailStatusHtml = `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--hint);margin-bottom:14px"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> No email sent yet</div>`;
+  } else {
+    const lastWhen=new Date(lastEmail.sentAt||lastEmail.receivedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+    mailStatusHtml = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <span class="badge" style="background:var(--teal-lt);color:var(--teal)"><svg style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;margin-right:3px;vertical-align:-1px" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>${sentCount} sent</span>
+      ${repliedCount?`<span class="badge replied"><svg style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;margin-right:3px;vertical-align:-1px" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>${repliedCount} replied</span>`:''}
+      <span style="font-size:11px;color:var(--muted)">Last ${lastEmail.direction==='received'?'reply':'mail'}: ${lastWhen}</span>
+    </div>`;
+  }
+  document.getElementById('detail-content').innerHTML=`
+    <div class="modal-header">
+      <span class="modal-title">${l.name}</span>
+      <button class="modal-close" onclick="closeModal('detail')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    ${mailStatusHtml}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:16px;background:var(--bg);padding:12px;border-radius:var(--radius)">
+      <div><b>Company</b><br><span style="color:var(--muted)">${l.company||'—'}</span></div>
+      <div><b>Email</b><br>
+        <span style="color:var(--muted)">${l.email||'—'}</span>
+        <div style="margin-top:2px">${emailValidationBadge(l)}</div>
+      </div>
+      <div><b>Phone</b><br>
+        <span style="color:var(--muted)">${l.phone||'—'}</span>
+        ${l.phone ? (() => {
+            const st = l.phoneStatus || '';
+            const isVerified = l.phoneValid !== false && st && !st.includes('Format Check') && !st.includes('Format check') && !st.includes('Format Only') && !st.includes('API key');
+            const isFormatOnly = l.phoneValid !== false && (st.includes('Format Check') || st.includes('Format check') || st.includes('Format Only') || st.includes('Format valid') || st.includes('API key') || !st);
+            const isInvalid = l.phoneValid === false;
+            if (isInvalid) return `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--red)">❌ Disconnected / Not In Use</div>`;
+            if (isFormatOnly) return `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--amber)">⚠️ Format Only — Not Carrier Verified<br><span style="font-weight:400;color:var(--muted);font-size:10.5px">Number format looks correct but active status is unconfirmed</span></div>`;
+            return `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--teal)">✓ Verified Active (Carrier Confirmed)</div>`;
+          })() : ''}
+      </div>
+      <div><b>Registered Location</b><br>
+        <span style="color:var(--muted);display:flex;align-items:center;gap:3px;margin-top:2px">
+          <svg style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${l.phoneLocation || [l.city, l.state].filter(Boolean).join(', ') || '—'}
+        </span>
+      </div>
+      <div><b>Product</b><br><span style="color:var(--muted)">${l.product||'—'}</span></div>
+      <div><b>Source</b><br><span style="color:var(--muted)">${l.source||'—'}</span></div>
+    </div>
+    ${l.message?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px;padding:10px;background:var(--bg);border-radius:var(--radius)">${l.message}</div>`:''}
+    ${l.aiSummary?`<div class="ai-card"><b style="font-size:12px;color:var(--purple-dk)">AI Analysis · ${l.score}/100 ${statusBadge(l.status)}</b><div class="ai-summary">${l.aiSummary}</div></div>`:''}
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px">Email thread (${le.length})</div>
+    <div class="email-thread" style="max-height:200px;overflow-y:auto;margin-bottom:14px">
+      ${le.length?le.map(e=>`<div class="email-msg ${e.direction||'sent'}"><div class="email-meta">${e.direction==='received'?'↩ Reply':'↗ Sent'} · ${new Date(e.sentAt||e.receivedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</div><div class="email-subject">${e.subject}</div><div class="email-body" style="font-size:12px;margin-top:4px">${(e.body||'').slice(0,200)}</div></div>`).join(''):'<div style="color:var(--hint);font-size:12px">No emails yet</div>'}
+    </div>
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px">Followup date & time</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+      <input type="date" id="fu-date-${id}" value="${fu?.date||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;flex:1">
+      <input type="time" id="fu-time-${id}" value="${fu?.time||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;width:130px">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" onclick="saveFollowup('${id}',document.getElementById('fu-date-${id}').value,document.getElementById('fu-time-${id}').value).then(()=>{ closeModal('detail'); renderAll(); })">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Schedule Followup
+      </button>
+      <button class="btn" onclick="qualify('${id}');closeModal('detail')">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        AI Score
+      </button>
+    </div>
+  `;
+  openModal('detail');
+}
+
+// ─── AI Qualify ───────────────────────────────────────────────────────────────
+function renderQualify() {
+  document.getElementById('qualify-list').innerHTML=leads.map(l=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;background:var(--surface)">
+      <div style="flex:1">
+        <div style="font-weight:500">${l.name} <span style="font-size:12px;color:var(--muted)">· ${l.company||'—'}</span></div>
+        <div style="font-size:12px;color:var(--purple-dk);font-weight:500;margin-top:2px">Lead time: ${formatLeadTime(l.createdAt)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${l.product||l.message?.slice(0,80)||'—'}</div>
+        ${l.aiSummary?`<div class="ai-summary" style="margin-top:8px">${l.aiSummary}</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${scoreHtml(l.score)}
+        ${l.status?statusBadge(l.status):''}
+        <div style="margin-top:8px"><button class="btn sm primary" onclick="qualify('${l.id}')" ${isScoringAll?'disabled':''}>
+          <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          ${isScoringAll?'Scoring':(l.score!=null?'Re-score':'Score')}
+        </button></div>
+      </div>
+    </div>`).join('') || '<div class="empty">No leads yet.</div>';
+}
+
+function setScoreAllState(active, text = '') {
+  isScoringAll = active;
+  const btn = document.getElementById('score-all-btn');
+  const label = document.getElementById('score-all-label');
+  const progress = document.getElementById('score-all-progress');
+  const progressText = document.getElementById('score-all-progress-text');
+  if (btn) btn.disabled = active;
+  if (label) label.textContent = active ? 'Scoring...' : 'All Score';
+  if (progress) progress.style.display = active ? 'flex' : 'none';
+  if (progressText && text) progressText.textContent = text;
+  if (document.getElementById('view-qualify').classList.contains('active')) renderQualify();
+}
+
+async function scoreAllLeads() {
+  if (!requireAutomationOn('AI scoring')) return;
+  if (isScoringAll) return;
+  const pending = leads.filter(l => l.score == null);
+  if (!pending.length) {
+    toast('All leads already have scores', 'success');
+    renderQualify();
+    return;
+  }
+
+  setScoreAllState(true, `Scoring 0 / ${pending.length} leads...`);
+  let scored = 0;
+  let failed = 0;
+
+  for (const lead of pending) {
+    const progressText = document.getElementById('score-all-progress-text');
+    if (progressText) progressText.textContent = `Scoring ${scored + failed + 1} / ${pending.length}: ${lead.name}`;
+
+    try {
+      const r = await fetch(`${API}/qualify/${lead.id}`, { method: 'POST' });
+      const d = await r.json();
+      if (d.error) {
+        failed++;
+        if (d.quota) {
+          const qEl = document.getElementById('qualify-quota-notice');
+          if (qEl) {
+            qEl.style.display = 'flex';
+            document.getElementById('qualify-quota-msg').textContent = d.hint || d.error;
+          }
+        }
+      } else {
+        const i = leads.findIndex(x => x.id === lead.id);
+        if (i >= 0) leads[i] = d.lead;
+        if (d.qualify?.suggested_subject) window._lastQualify = d.qualify;
+        scored++;
+      }
+    } catch (e) {
+      failed++;
+      console.error('[Score All]', lead.id, e);
+    }
+
+    renderAll();
+    renderQualify();
+  }
+
+  setScoreAllState(false);
+  if (failed) toast(`All Score finished: ${scored} scored, ${failed} failed`, 'error');
+  else toast(`All Score finished: ${scored} leads scored`, 'success');
+}
+
+async function qualify(id) {
+  if (!requireAutomationOn('AI scoring')) return;
+  if (isScoringAll) return;
+  const l=leads.find(x=>x.id===id);
+  toast(`Scoring ${l.name}…`);
+  try {
+    const r=await fetch(`${API}/qualify/${id}`,{method:'POST'});
+    const d=await r.json();
+    if (d.error) {
+      if (d.quota) {
+        // Show friendly quota error
+        const msg = `⚠️ Gemini quota exceeded. Wait ~60 sec & retry, or get a new key at aistudio.google.com/apikey`;
+        toast(msg, 'error');
+        // Also show in a more visible way if on qualify view
+        const qEl = document.getElementById('qualify-quota-notice');
+        if (qEl) { qEl.style.display='flex'; document.getElementById('qualify-quota-msg').textContent = d.hint || msg; }
+      } else {
+        toast(d.error,'error');
+      }
+      return;
+    }
+    const qEl = document.getElementById('qualify-quota-notice');
+    if (qEl) qEl.style.display='none';
+    const i=leads.findIndex(x=>x.id===id); leads[i]=d.lead;
+    renderAll();
+    if (document.getElementById('view-qualify').classList.contains('active')) renderQualify();
+    toast(`${l.name} scored ${d.lead.score}/100 — ${d.lead.status}`,'success');
+    if (d.qualify?.suggested_subject) { window._lastQualify=d.qualify; }
+  } catch(e) { toast('Qualify failed: '+e.message,'error'); }
+}
+
+// ─── Email ────────────────────────────────────────────────────────────────────
+function openEmail(id) {
+  if (!requireAutomationOn('Mail sending')) return;
+  emailLeadId=id;
+  const l=leads.find(x=>x.id===id);
+  const le=emails.filter(e=>e.leadId===id&&e.direction==='sent');
+  const isFollowup=le.length>0;
+  const q=window._lastQualify;
+  document.getElementById('e-to').value=`${l.name} <${l.email}>`;
+  document.getElementById('e-subject').value=q?.suggested_subject||(isFollowup?`Following up — ${l.company}`:`Introduction — ${l.name.split(' ')[0]}, let's connect`);
+  document.getElementById('e-body').value=q?.suggested_body||(isFollowup
+    ?`Hi ${l.name.split(' ')[0]},\n\nI wanted to follow up on my previous email regarding ${l.product||'your enquiry'}.\n\nDo you have 15 minutes this week for a quick call?\n\nBest regards`
+    :`Hi ${l.name.split(' ')[0]},\n\nThank you for your enquiry about ${l.product||'our products'}. We'd love to help you with the right solution.\n\nCould we schedule a quick call to understand your requirements better?\n\nBest regards`);
+  window._lastQualify=null;
+  openModal('email');
+}
+
+async function sendEmail() {
+  if (!requireAutomationOn('Mail sending')) return;
+  const l=leads.find(x=>x.id===emailLeadId);
+  if (!l) { toast('Lead not found','error'); closeModal('email'); return; }
+  const payload={leadId:emailLeadId,to:l.email,subject:document.getElementById('e-subject').value,body:document.getElementById('e-body').value,attachments:[]};
+  const r=await fetch(`${API}/send-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json());
+  if (r.error) { toast(r.error, 'error'); return; }
+  emails.push({...payload,id:r.emailId,direction:'sent',sentAt:new Date().toISOString()});
+  closeModal('email');
+  renderAll();
+  toast(r.sent?'Email sent!':'Email logged (SMTP not configured)','success');
+  
+  document.querySelectorAll('.nav-item').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes('inbox')) nav('inbox', b);
+  });
+}
+
+// ─── Bulk Mail ────────────────────────────────────────────────────────────────
+const BULK_GROUPS = [
+  { key:'Hot',   emoji:'🔥', label:'Hot' },
+  { key:'Warm',  emoji:'☀️', label:'Warm' },
+  { key:'Cold',  emoji:'❄️', label:'Cold' },
+  { key:'New',   emoji:'✦',  label:'New' },
+];
+let bulkSelectedGroups = new Set();
+let bulkExcludedLeadIds = new Set();
+
+function renderBulkMail() {
+  const grid = document.getElementById('bulk-group-grid');
+  grid.innerHTML = BULK_GROUPS.map(g=>{
+    const count = leads.filter(l=>l.status===g.key && l.email).length;
+    const checked = bulkSelectedGroups.has(g.key);
+    return `<div class="group-card ${checked?'checked':''}" onclick="toggleBulkGroup('${g.key}')">
+      <div class="g-check">${checked?'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
+      <div class="g-emoji">${g.emoji}</div>
+      <div class="g-count">${count}</div>
+      <div class="g-label">${g.label}</div>
+    </div>`;
+  }).join('');
+  renderBulkRecipients();
+  const sendBtn = document.getElementById('bulk-send-btn');
+  if (sendBtn) sendBtn.disabled = !automationEnabled;
+  document.getElementById('bulk-results').innerHTML='';
+  document.getElementById('bulk-progress').classList.remove('show');
+}
+
+function toggleBulkGroup(key) {
+  if (!requireAutomationOn('Bulk mail')) return;
+  if (bulkSelectedGroups.has(key)) bulkSelectedGroups.delete(key);
+  else bulkSelectedGroups.add(key);
+  bulkExcludedLeadIds.clear();
+  renderBulkMail();
+}
+
+function getBulkTargetLeads() {
+  return leads.filter(l => bulkSelectedGroups.has(l.status) && l.email && !bulkExcludedLeadIds.has(l.id));
+}
+
+function renderBulkRecipients() {
+  const all = leads.filter(l => bulkSelectedGroups.has(l.status));
+  const withEmail = all.filter(l=>l.email);
+  const target = getBulkTargetLeads();
+  document.getElementById('bulk-recipient-count').textContent = target.length;
+
+  const listEl = document.getElementById('bulk-recipient-list');
+  if (!all.length) { listEl.innerHTML = '<div class="empty" style="padding:24px">Pick a group above to see recipients.</div>'; return; }
+  listEl.innerHTML = all.map(l=>{
+    const noEmail = !l.email;
+    const isChecked = !bulkExcludedLeadIds.has(l.id) && !noEmail;
+    return `<div class="recipient-row">
+      <input type="checkbox" ${isChecked?'checked':''} ${noEmail?'disabled':''} onchange="toggleBulkExclude('${l.id}',this.checked)">
+      <span class="rr-name">${l.name}${noEmail?' <span style="color:var(--red);font-weight:400">· no email</span>':''}</span>
+      <span class="rr-email">${l.email||'—'}</span>
+      ${statusBadge(l.status)}
+    </div>`;
+  }).join('');
+}
+
+function toggleBulkExclude(leadId, isChecked) {
+  if (isChecked) bulkExcludedLeadIds.delete(leadId);
+  else bulkExcludedLeadIds.add(leadId);
+  renderBulkRecipients();
+}
+
+function toggleRecipientList() {
+  const el = document.getElementById('bulk-recipient-list');
+  const show = el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  document.getElementById('bulk-toggle-list-btn').textContent = show ? 'Hide list' : 'Show / edit list';
+}
+
+function insertPlaceholder(tag) {
+  const ta = document.getElementById('bulk-body');
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.slice(0,start) + tag + ta.value.slice(end);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = start + tag.length;
+}
+
+async function sendBulkEmail() {
+  if (!requireAutomationOn('Bulk mail')) return;
+  const subject = document.getElementById('bulk-subject').value.trim();
+  const body = document.getElementById('bulk-body').value.trim();
+  const targets = getBulkTargetLeads();
+
+  if (!bulkSelectedGroups.size) { toast('Pick at least one lead group','error'); return; }
+  if (!targets.length) { toast('No leads with a valid email in this selection','error'); return; }
+  if (!subject || !body) { toast('Subject and body are required','error'); return; }
+
+  const btn = document.getElementById('bulk-send-btn');
+  const progress = document.getElementById('bulk-progress');
+  const progressText = document.getElementById('bulk-progress-text');
+  btn.disabled = true;
+  progress.classList.add('show');
+  progressText.textContent = `Sending to ${targets.length} lead${targets.length>1?'s':''}…`;
+  document.getElementById('bulk-results').innerHTML='';
+
+  try {
+    const attachPdf = document.getElementById('bulk-attach-pdf').checked;
+    const attachGif = document.getElementById('bulk-attach-gif').checked;
+    const attachments = [];
+    if (attachPdf) {
+      attachments.push({ filename: 'Oddinfotech Portfolio 2025.pdf', path: '/assets/portfolio.pdf' });
+    }
+    if (attachGif) {
+      attachments.push({ filename: 'Email signature - 3.gif', path: '/assets/signature.gif', cid: 'signature_gif', contentType: 'image/gif', contentDisposition: 'inline' });
+    }
+
+    const r = await fetch(`${API}/send-bulk-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        statuses: [...bulkSelectedGroups].filter(s => targets.some(t => t.status === s)),
+        leadIds: targets.map(t => t.id),
+        subject,
+        body,
+        attachments
+      })
+    }).then(x => x.json());
+
+    if (r.error) { toast(r.error,'error'); progress.classList.remove('show'); btn.disabled=false; return; }
+
+    const fresh = await fetch(`${API}/emails`).then(x=>x.json()).catch(()=>emails);
+    emails = fresh;
+
+    progress.classList.remove('show');
+    btn.disabled = false;
+    toast(`${r.sent}/${r.total} emails ${r.smtpConfigured?'sent':'logged'}`, r.failed?'error':'success');
+
+    document.getElementById('bulk-results').innerHTML = `
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Results — ${r.sent} ${r.smtpConfigured?'sent':'logged'}, ${r.failed} failed</div>
+      ${(r.results||[]).map(res=>`<div class="bulk-result-row ${res.sent||!r.smtpConfigured?'ok':'fail'}">
+        ${res.sent||!r.smtpConfigured?'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':'<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'}
+        <span style="flex:1">${res.name} (${res.email})</span>
+        <span>${res.sent?'Sent':r.smtpConfigured?('Failed: '+(res.error||'unknown')):'Logged'}</span>
+      </div>`).join('')}
+    `;
+    renderAll();
+  } catch (e) {
+    progress.classList.remove('show');
+    btn.disabled = false;
+    toast('Bulk send failed: '+e.message,'error');
+  }
+}
+
+
+function renderInbox() {
+  const all=[...emails].sort((a,b)=>new Date(b.sentAt||b.receivedAt)-new Date(a.sentAt||a.receivedAt));
+  const el=document.getElementById('inbox-list');
+  if (!all.length) { el.innerHTML='<div class="empty">No emails yet.</div>'; return; }
+  el.innerHTML=all.map(e=>{
+    const l=leads.find(x=>x.id===e.leadId)||{name:'Unknown',company:''};
+    const isUnread = e.direction === 'received' && !readReplyIds.has(e.id);
+    const isReceived = e.direction === 'received';
+    const emailType = isReceived ? 'REPLY' : e.bulk ? 'BULK' : e.autoResponse ? 'AUTO' : 'MANUAL';
+    const emailTypeColor = e.bulk ? 'var(--amber)' : e.autoResponse ? 'var(--teal)' : isReceived ? 'var(--blue)' : 'var(--purple)';
+    const recipient = e.to || l.email || '-';
+    const bgColor = isReceived ? '#F0F4F8' : 'var(--surface)';
+    const borderColor = isReceived ? '#D9E2EC' : 'var(--border)';
+    
+    return `<div class="email-msg ${e.direction||'sent'}" onclick="this.classList.toggle('expanded'); if('${e.direction}'==='received') { markAsRead('${e.id}'); this.style.borderLeft='1px solid ${borderColor}'; this.querySelector('.email-subject').style.fontWeight='600'; }" style="margin-bottom:12px;position:relative;padding:14px;border:1px solid ${borderColor}; ${isUnread ? 'border-left:4px solid var(--purple);' : ''} border-radius:var(--radius);background:${bgColor};cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow-sm)">
+      <button class="btn sm danger" style="position:absolute;top:10px;right:10px;padding:3px 8px;font-size:11px;z-index:2;background:var(--surface)" onclick="deleteEmail('${e.id}', event)" title="Delete Email">
+        Delete
+      </button>
+      <div class="email-meta" style="display:flex;justify-content:space-between;padding-right:70px;margin-bottom:6px;font-size:12.5px;color:var(--text)">
+        <span><span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:var(--gray-lt);color:${emailTypeColor};font-size:10px;font-weight:700;margin-right:6px">${emailType}</span> ${isReceived?'<span style="color:var(--blue);font-weight:bold">Reply from</span>':'<span style="color:var(--hint)">Sent to</span>'} <b style="color:var(--purple-dk);margin-left:4px">${l.name}</b>${l.company?' <span style="color:var(--muted)">('+l.company+')</span>':''} <span style="color:var(--muted);margin-left:6px">&lt;${recipient}&gt;</span></span>
+        <span style="color:var(--muted)">${new Date(e.sentAt||e.receivedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</span>
+      </div>
+      <div class="email-subject" style="padding-right:70px;font-weight:600;margin-bottom:8px;font-size:13.5px">${e.subject||'(no subject)'}</div>
+      <div class="email-body" style="font-size:13px;color:var(--gray);overflow:hidden;white-space:pre-wrap;line-height:1.5;transition:max-height 0.3s ease;max-height:60px;position:relative">${(e.body||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    </div>`;
+  }).join('');
+  checkBadges();
+}
+
+async function deleteEmail(id, event) {
+  if (event) event.stopPropagation();
+  if (!confirm('Delete this email record from history?')) return;
+  try {
+    await fetch(`${API}/emails/${id}`, { method: 'DELETE' });
+    emails = emails.filter(e => e.id !== id);
+    renderAll();
+    if (document.getElementById('view-inbox').classList.contains('active')) {
+      renderInbox();
+    }
+    toast('Email deleted', 'success');
+  } catch (e) {
+    toast('Failed to delete email: ' + e.message, 'error');
+  }
+}
+
+function openReplyModal() {
+  if (!requireAutomationOn('Reply logging')) return;
+  const sel=document.getElementById('r-lead');
+  sel.innerHTML=leads.map(l=>`<option value="${l.id}">${l.name} — ${l.company||l.email}</option>`).join('');
+  openModal('reply');
+}
+
+async function logReply() {
+  if (!requireAutomationOn('Reply logging')) return;
+  const leadId=document.getElementById('r-lead').value;
+  const payload={leadId,subject:document.getElementById('r-subject').value,body:document.getElementById('r-body').value,direction:'received'};
+  const r=await fetch(`${API}/reply`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json());
+  if (r.error) { toast(r.error, 'error'); return; }
+  emails.push(r);
+  // Update lead clientStatus in local state
+  const i=leads.findIndex(l=>l.id===leadId);
+  if (i>=0&&leads[i].clientStatus==='Prospect') { leads[i].clientStatus='Replied'; }
+  closeModal('reply'); renderAll(); renderInbox(); toast('Reply logged','success');
+}
+
+// ─── Followups ────────────────────────────────────────────────────────────────
+async function saveFollowup(leadId, date, time) {
+  if (!requireAutomationOn('Followup')) return;
+  const datetime = time ? date + 'T' + time : date;
+  const r=await fetch(`${API}/followups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leadId,date,time:time||'',datetime})}).then(x=>x.json());
+  if (r.error) { toast(r.error, 'error'); return; }
+  const i=followups.findIndex(f=>f.leadId===leadId);
+  if(i>=0) followups[i]=r; else followups.push(r);
+  toast('Followup scheduled','success');
+  checkBadges();
+}
+
+async function reloadFollowups() {
+  followups = await fetch(`${API}/followups`).then(r=>r.json()).catch(()=>followups);
+}
+
+async function stopFollowup(followupId, event) {
+  if (event) event.stopPropagation();
+  const btn = event?.currentTarget;
+  if (btn) btn.disabled = true;
+  try {
+    const r=await apiJson(`${API}/followups/${encodeURIComponent(followupId)}/stop`,{method:'PATCH'});
+    if (r.error) { toast(r.error, 'error'); return; }
+    const i=followups.findIndex(f=>f.leadId===followupId || f.id===followupId);
+    if(i>=0) followups[i]=r;
+    await reloadFollowups();
+    renderFollowups();
+    checkBadges();
+    toast('Followup schedule stopped','success');
+  } catch(e) {
+    toast('Stop failed: '+e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deleteFollowup(followupId, event) {
+  if (event) event.stopPropagation();
+  if(!confirm('Delete this followup?')) return;
+  const btn = event?.currentTarget;
+  if (btn) btn.disabled = true;
+  try {
+    const r=await apiJson(`${API}/followups/${encodeURIComponent(followupId)}`,{method:'DELETE'});
+    if (r.error) { toast(r.error, 'error'); return; }
+    followups=followups.filter(f=>f.leadId!==followupId && f.id!==followupId);
+    await reloadFollowups();
+    renderFollowups();
+    checkBadges();
+    toast('Followup deleted','success');
+  } catch(e) {
+    toast('Delete failed: '+e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderFollowups() {
+  const today=new Date().toISOString().slice(0,10);
+  const el=document.getElementById('followup-list');
+  const scheduled=leads.map(l=>({lead:l,fu:followups.find(f=>f.leadId===l.id)})).filter(x=>x.fu?.date).sort((a,b)=>a.fu.date.localeCompare(b.fu.date));
+  if (!scheduled.length) { el.innerHTML='<div class="empty">No followups scheduled yet.<br>Set them from the lead detail view.</div>'; return; }
+  el.innerHTML=scheduled.map(({lead:l,fu})=>{
+    const overdue=fu.date<today, isToday=fu.date===today;
+    return `<div class="fu-row ${overdue?'fu-overdue':isToday?'fu-today':''}">
+      <div style="flex:1">
+        <div style="font-weight:500;font-size:13px">${l.name} <span style="font-weight:400;color:var(--muted)">· ${l.company||''}</span></div>
+        <div style="font-size:12px;color:var(--muted)">${l.product||l.email}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:12px;font-weight:500;color:${overdue?'var(--red)':isToday?'var(--amber)':'var(--text)'}">${overdue?'Overdue · ':isToday?'Today · ':''}${new Date(fu.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}${fu.time?' at '+fu.time:''}</div>
+      </div>
+      <div class="fu-actions">
+        <input type="date" value="${fu.date}" onchange="saveFollowup('${l.id}',this.value,document.getElementById('fu-list-time-${l.id}').value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)">
+        <input type="time" id="fu-list-time-${l.id}" value="${fu.time||''}" onchange="saveFollowup('${l.id}',this.previousElementSibling.value,this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);width:100px">
+        <button class="btn sm primary" onclick="openEmail('${l.id}')">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Mail
+        </button>
+        <button type="button" class="btn sm" onclick="stopFollowup('${fu.id||l.id}', event)" title="Stop schedule">
+          <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          Stop
+        </button>
+        <button type="button" class="btn sm danger" onclick="deleteFollowup('${fu.id||l.id}', event)" title="Delete followup">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Delete
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function checkBadges() {
+  if (!automationEnabled) {
+    const badgeFu=document.getElementById('badge-fu');
+    const badgeInbox=document.getElementById('badge-inbox');
+    if (badgeFu) badgeFu.style.display='none';
+    if (badgeInbox) badgeInbox.style.display='none';
+    return;
+  }
+  const today=new Date().toISOString().slice(0,10);
+  const fuDue=followups.filter(f=>f.date&&f.date<=today).length;
+  const badgeFu=document.getElementById('badge-fu');
+  if (badgeFu) {
+    badgeFu.style.display=fuDue?'inline':'none';
+    badgeFu.textContent=fuDue;
+  }
+
+  const unreadReplies=emails.filter(e=>e.direction==='received' && !readReplyIds.has(e.id)).length;
+  const badgeInbox=document.getElementById('badge-inbox');
+  if (badgeInbox) {
+    badgeInbox.style.display=unreadReplies?'inline':'none';
+    badgeInbox.textContent=unreadReplies;
+  }
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+function downloadCSV() { window.open(`${API}/export/csv`,'_blank'); }
+
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }
+function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); }));
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast'+(type?' '+type:'');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ─── Init & Polling ───────────────────────────────────────────────────────────
+let acknowledgedReplyIds = new Set(JSON.parse(localStorage.getItem('acknowledgedReplyIds') || '[]'));
+let readReplyIds = new Set(JSON.parse(localStorage.getItem('readReplyIds') || '[]'));
+let lastGmailSyncTime = Date.now();
+
+function persistReadState() {
+  localStorage.setItem('readReplyIds', JSON.stringify([...readReplyIds]));
+}
+function persistAcknowledgedState() {
+  localStorage.setItem('acknowledgedReplyIds', JSON.stringify([...acknowledgedReplyIds]));
+}
+
+async function uploadExcelFile(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  toast(`Uploading and validating ${file.name}...`);
+  try {
+    const response = await fetch(`${API}/leads/upload-excel`, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await response.json();
+    if (data.error) {
+      toast(data.error, 'error');
+    } else {
+      leads = data.leads || leads;
+      toast(`Successfully imported and validated ${data.added} leads from Excel`, 'success');
+      renderAll();
+    }
+  } catch (e) {
+    toast('Failed to upload Excel file: ' + e.message, 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+async function syncGmailReplies(showToast = false) {
+  if (!automationEnabled) return;
+  if (showToast) toast('Syncing Gmail replies...');
+  try {
+    const r = await fetch(`${API}/emails/sync-replies`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      if (d.added > 0) {
+        if (showToast) toast(`Synced! Found ${d.added} new replies.`, 'success');
+        [leads, emails] = await Promise.all([
+          fetch(`${API}/leads`).then(res=>res.json()).catch(()=>leads),
+          fetch(`${API}/emails`).then(res=>res.json()).catch(()=>emails)
+        ]);
+        renderAll();
+        if (document.getElementById('view-inbox').classList.contains('active')) {
+          renderInbox();
+        }
+        updateNotificationsUI();
+      } else if (showToast) {
+        toast('No new replies in Gmail.', 'success');
+      }
+    } else if (showToast) {
+      toast('Gmail sync error: ' + (d.error || 'unknown error'), 'error');
+    }
+  } catch(e) {
+    console.error('[Gmail Sync Error]', e);
+    if (showToast) {
+      toast('Cannot connect to server for Gmail sync.', 'error');
+    }
+  }
+}
+
+async function init() {
+  [leads, emails, followups] = await Promise.all([
+    fetch(`${API}/leads`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${API}/emails`).then(r=>r.json()).catch(()=>[]),
+    fetch(`${API}/followups`).then(r=>r.json()).catch(()=>[])
+  ]);
+  await loadAutomationState();
+  
+  // Acknowledge existing replies so they don't fire alerts on page reload
+  const replies = emails.filter(e => e.direction === 'received');
+  replies.forEach(r => acknowledgedReplyIds.add(r.id));
+  persistAcknowledgedState();
+
+  renderAll();
+  checkBadges();
+  setupNotificationBell();
+  updateNotificationsUI();
+
+  // Dynamically sync Gmail replies on startup
+  syncGmailReplies(false);
+  
+  // Poll for replies every 10 seconds
+  setInterval(pollReplies, 10000);
+}
+
+// ─── Notification System ──────────────────────────────────────────────────────
+function setupNotificationBell() {
+  document.querySelectorAll('.topbar').forEach(topbar => {
+    if (topbar.querySelector('.notif-bell-container')) return;
+    const bell = document.createElement('div');
+    bell.className = 'notif-bell-container';
+    bell.innerHTML = `
+      <button class="notif-bell-btn" onclick="toggleNotifDropdown(event)">
+  
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge" style="display:none">0</span>
+      </button>
+      <div class="notif-dropdown">
+        <div class="notif-dropdown-header">
+          <span>Replies Notifications</span>
+          <button class="notif-clear-btn" onclick="markAllRepliesAsRead(event)">Mark all read</button>
+        </div>
+        <div class="notif-dropdown-list">
+          <div style="padding:16px;text-align:center;color:var(--hint);font-size:12px">No replies yet</div>
+        </div>
+      </div>
+    `;
+    topbar.appendChild(bell);
+  });
+
+  if (!document.getElementById('floating-alerts')) {
+    const alertContainer = document.createElement('div');
+    alertContainer.id = 'floating-alerts';
+    alertContainer.className = 'floating-alerts-container';
+    document.body.appendChild(alertContainer);
+  }
+}
+
+async function pollReplies() {
+  if (!automationEnabled) return;
+  try {
+    // Throttle background Gmail IMAP replies sync to run every 30 seconds
+    const now = Date.now();
+    if (now - lastGmailSyncTime >= 30000) {
+      lastGmailSyncTime = now;
+      await syncGmailReplies(false);
+    }
+
+    const [freshLeads, freshEmails] = await Promise.all([
+      fetch(`${API}/leads`).then(r=>r.json()).catch(()=>leads),
+      fetch(`${API}/emails`).then(r=>r.json()).catch(()=>emails)
+    ]);
+    
+    leads = freshLeads;
+    
+    const replies = freshEmails.filter(e => e.direction === 'received');
+    let hasNew = false;
+    
+    replies.forEach(reply => {
+      if (!acknowledgedReplyIds.has(reply.id)) {
+        acknowledgedReplyIds.add(reply.id);
+        hasNew = true;
+        const l = leads.find(x => x.id === reply.leadId) || { name: 'Unknown Client', company: '' };
+        showFloatingNotif(reply, l);
+      }
+    });
+    
+    if (hasNew) {
+      persistAcknowledgedState();
+      document.querySelectorAll('.notif-bell-container').forEach(c => {
+        c.classList.add('notif-bell-ring');
+        setTimeout(() => c.classList.remove('notif-bell-ring'), 800);
+      });
+    }
+    
+    emails = freshEmails;
+    
+    if (document.getElementById('view-inbox').classList.contains('active')) {
+      renderInbox();
+    }
+    
+    updateNotificationsUI();
+    checkBadges();
+  } catch(e) {
+    console.error('[Poll error]', e);
+  }
+}
+
+function showFloatingNotif(reply, lead) {
+  const container = document.getElementById('floating-alerts');
+  if (!container) return;
+  
+  const alert = document.createElement('div');
+  alert.className = 'floating-alert';
+  alert.innerHTML = `
+    <button class="floating-alert-close" onclick="this.parentElement.remove()">&times;</button>
+    <div class="floating-alert-title">New Reply from ${lead.name}</div>
+    <div class="floating-alert-body">"${reply.body.slice(0, 80)}${reply.body.length > 80 ? '...' : ''}"</div>
+    <button class="floating-alert-btn" onclick="openReplyFromAlert('${reply.leadId}', '${reply.id}', this)">View Details</button>
+  `;
+  container.appendChild(alert);
+  
+  setTimeout(() => {
+    if (alert.parentElement) alert.remove();
+  }, 8000);
+}
+
+function openReplyFromAlert(leadId, replyId, btn) {
+  readReplyIds.add(replyId);
+  acknowledgedReplyIds.add(replyId);
+  persistReadState();
+  persistAcknowledgedState();
+  updateNotificationsUI();
+  checkBadges();
+  viewLead(leadId);
+  btn.parentElement.remove();
+}
+
+function updateNotificationsUI() {
+  if (!automationEnabled) {
+    document.querySelectorAll('.notif-badge').forEach(badge => { badge.style.display = 'none'; });
+    document.querySelectorAll('.notif-dropdown-list').forEach(list => {
+      list.innerHTML = `<div style="padding:16px;text-align:center;color:var(--hint);font-size:12px">Webapp is OFF</div>`;
+    });
+    return;
+  }
+  const replies = emails.filter(e => e.direction === 'received');
+  const unreadReplies = replies.filter(r => !readReplyIds.has(r.id));
+  const count = unreadReplies.length;
+  
+  document.querySelectorAll('.notif-badge').forEach(badge => {
+    if (count > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = count;
+    } else {
+      badge.style.display = 'none';
+    }
+  });
+  
+  document.querySelectorAll('.notif-dropdown-list').forEach(list => {
+    if (!replies.length) {
+      list.innerHTML = `<div style="padding:16px;text-align:center;color:var(--hint);font-size:12px">No replies yet</div>`;
+    }
+    const sorted = [...replies].sort((a,b) => new Date(b.receivedAt || b.sentAt) - new Date(a.receivedAt || a.sentAt)).slice(0, 5);
+    list.innerHTML = sorted.map(r => {
+      const l = leads.find(x => x.id === r.leadId) || { name: 'Unknown', company: '' };
+      const isUnread = !readReplyIds.has(r.id);
+      const timeStr = new Date(r.receivedAt || r.sentAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="notif-item ${isUnread ? 'unread' : ''}" onclick="selectNotification('${r.leadId}', '${r.id}')">
+          <div class="notif-item-meta">
+            <span>${l.name}</span>
+            <span>${timeStr}</span>
+          </div>
+          <div class="notif-item-title">${r.subject || '(No Subject)'}</div>
+          <div class="notif-item-body">${r.body}</div>
+        </div>
+      `;
+    }).join('');
+  });
+}
+
+function selectNotification(leadId, replyId) {
+  readReplyIds.add(replyId);
+  acknowledgedReplyIds.add(replyId);
+  persistReadState();
+  persistAcknowledgedState();
+  updateNotificationsUI();
+  checkBadges();
+  document.querySelectorAll('.notif-dropdown').forEach(d => d.classList.remove('open'));
+  viewLead(leadId);
+}
+
+// Mark all as read
+function markAllRepliesAsRead(event) {
+  event.stopPropagation();
+  const replies = emails.filter(e => e.direction === 'received');
+  replies.forEach(r => {
+    readReplyIds.add(r.id);
+    acknowledgedReplyIds.add(r.id);
+  });
+  persistReadState();
+  persistAcknowledgedState();
+  updateNotificationsUI();
+  checkBadges();
+  if (document.getElementById('view-inbox').classList.contains('active')) {
+    renderInbox();
+  }
+}
+
+function markAsRead(id) {
+  if (!readReplyIds.has(id)) {
+    readReplyIds.add(id);
+    acknowledgedReplyIds.add(id);
+    persistReadState();
+    persistAcknowledgedState();
+    updateNotificationsUI();
+    checkBadges();
+  }
+}
+
+function toggleNotifDropdown(event) {
+  event.stopPropagation();
+  const dropdown = event.currentTarget.nextElementSibling;
+  document.querySelectorAll('.notif-dropdown').forEach(d => {
+    if (d !== dropdown) d.classList.remove('open');
+  });
+  dropdown.classList.toggle('open');
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.notif-dropdown').forEach(d => d.classList.remove('open'));
+});
+
+
+
+init();
+</script>
+</body>
+</html>

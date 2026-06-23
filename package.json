@@ -1,0 +1,22 @@
+{
+  "name": "indiamart-crm",
+  "version": "1.0.0",
+  "description": "IndiaMART Lead Qualification CRM",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "imap-simple": "^5.1.0",
+    "mailparser": "^3.9.10",
+    "mongodb": "^6.3.0",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^6.9.8",
+    "xlsx": "^0.18.5"
+  }
+}
