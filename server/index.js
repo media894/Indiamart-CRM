@@ -1316,7 +1316,7 @@ function getGreetingEmailHtml(lead) {
 </head>
 <body style="margin: 0; padding: 0; background: #ffffff; font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.55;">
   <div style="font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.55; font-size: 14px;">
-    <p style="margin: 0 0 18px 0;">Dear <strong>${escapeHtml(name)}</strong>,</p>
+    <p style="margin: 0 0 18px 0;">Dear ${escapeHtml(name)},</p>
     <p style="margin: 0 0 18px 0;">Good day!</p>
     ${bodyHtml}
     <p style="margin: 0 0 12px 0;">
@@ -1686,12 +1686,13 @@ app.get('/api/indiamart/leads', async (req, res) => {
   // IndiaMART CRM API v2 expects: DD-MMM-YYYY HH:MM:SS  e.g. 01-Jun-2026 00:00:00
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const fmt = d => {
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = months[d.getMonth()];
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
-    const ss = String(d.getSeconds()).padStart(2,'0');
+    const dIST = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    const dd = String(dIST.getUTCDate()).padStart(2,'0');
+    const mm = months[dIST.getUTCMonth()];
+    const yyyy = dIST.getUTCFullYear();
+    const hh = String(dIST.getUTCHours()).padStart(2,'0');
+    const mi = String(dIST.getUTCMinutes()).padStart(2,'0');
+    const ss = String(dIST.getUTCSeconds()).padStart(2,'0');
     return `${dd}-${mm}-${yyyy} ${hh}:${mi}:${ss}`;
   };
 
@@ -1844,12 +1845,13 @@ app.get('/api/indiamart/debug', async (req, res) => {
   if (!apiKey) return res.json({ error: 'No API key set. Add INDIAMART_API_KEY in .env' });
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const fmt = d => {
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = months[d.getMonth()];
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
-    const ss = String(d.getSeconds()).padStart(2,'0');
+    const dIST = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    const dd = String(dIST.getUTCDate()).padStart(2,'0');
+    const mm = months[dIST.getUTCMonth()];
+    const yyyy = dIST.getUTCFullYear();
+    const hh = String(dIST.getUTCHours()).padStart(2,'0');
+    const mi = String(dIST.getUTCMinutes()).padStart(2,'0');
+    const ss = String(dIST.getUTCSeconds()).padStart(2,'0');
     return `${dd}-${mm}-${yyyy} ${hh}:${mi}:${ss}`;
   };
   const end = new Date();
