@@ -157,7 +157,7 @@ async function saveData(data) {
   try {
     await db.collection('crm').updateOne(
       { _id: 'main' },
-      { $set: { leads: data.leads, emails: data.emails, followups: data.followups } },
+      { $set: { leads: data.leads, emails: data.emails, followups: data.followups, lastSyncTime: data.lastSyncTime } },
       { upsert: true }
     );
   } catch (err) {
