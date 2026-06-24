@@ -873,7 +873,7 @@ function renderLeads() {
         <div style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:12px">${l.product||'—'}</div>
         <div style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px">${(l.message||'').slice(0,60)}</div>
       </td>
-      <td style="font-size:12px;color:var(--muted)">${[l.city,l.state].filter(Boolean).join(', ')||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${[l.city,l.state].filter(Boolean).join(', ')||l.phoneLocation||'—'}</td>
       <td>${scoreHtml(l.score)}</td>
       <td>
         <select style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)" onchange="updateClientStatus('${l.id}',this.value)">

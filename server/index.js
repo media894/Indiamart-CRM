@@ -303,11 +303,15 @@ function hasExistingLead(data, { email, phone, indiamartId }) {
 }
 function hasAutoResponseForLead(data, lead) {
   const emailKey = normalizeEmail(lead.email);
+  const serviceKey = getLeadServiceKey(lead);
   return (data.emails || []).some(email => {
     if (!email.autoResponse) return false;
     if (email.status === 'failed') return false;
-    if (email.leadId === lead.id) return true;
-    return emailKey && normalizeEmail(email.to) === emailKey;
+    
+    const isSameService = email.serviceKey === serviceKey;
+    const isSameLead = (email.leadId === lead.id) || (emailKey && normalizeEmail(email.to) === emailKey);
+    
+    return isSameLead && isSameService;
   });
 }
 async function loadSettings() {
@@ -1691,8 +1695,14 @@ app.get('/api/indiamart/leads', async (req, res) => {
     return `${dd}-${mm}-${yyyy} ${hh}:${mi}:${ss}`;
   };
 
+  const data = await loadData();
   const end = new Date();
-  const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+  let start;
+  if (data.lastSyncTime) {
+    start = new Date(new Date(data.lastSyncTime).getTime() - 30 * 60 * 1000); // overlap 30 mins
+  } else {
+    start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days fallback
+  }
 
   const url = `https://mapi.indiamart.com/wservce/crm/crmListing/v2/?glusr_crm_key=${apiKey}&start_time=${encodeURIComponent(fmt(start))}&end_time=${encodeURIComponent(fmt(end))}`;
   console.log('[IndiaMART] Fetching:', url);
@@ -1714,7 +1724,6 @@ app.get('/api/indiamart/leads', async (req, res) => {
       return res.status(502).json({ error: json.MESSAGE || json.message || 'IndiaMART API error', raw: json });
     }
 
-    const data = await loadData();
     const existing = new Set(data.leads.map(l => l.indiamartId).filter(Boolean));
     const queuedAutoResponses = [];
     let added = 0;
@@ -1787,6 +1796,7 @@ app.get('/api/indiamart/leads', async (req, res) => {
     }
 
     // ✅ Only newly added leads in THIS sync get auto-response (not old existing leads)
+    data.lastSyncTime = new Date().toISOString();
     await saveData(data);
 
     // Send auto-responses sequentially with delay to avoid Gmail rate limit block
