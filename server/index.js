@@ -2013,7 +2013,7 @@ app.delete('/api/leads/:id', async (req, res) => {
 // ─── Background Sync Jobs ───────────────────────────────────────────────────────
 // IndiaMART API limit is 1 hit per 5 minutes. Poll at that cadence so new leads
 // are picked up quickly, and run once shortly after startup.
-const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const AUTO_SYNC_INTERVAL_MS = 6 * 60 * 1000;
 
 async function runBackgroundSync() {
   const settings = await loadSettings();
