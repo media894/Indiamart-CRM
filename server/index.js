@@ -381,16 +381,19 @@ function isSmtpConfigured(settings) {
 }
 function createSmtpTransport(settings) {
   const port = Number(settings.smtpPort) || 587;
+  const isGmail = settings.smtpHost.includes('gmail.com');
+  
   return nodemailer.createTransport({
     host: settings.smtpHost,
     port,
     secure: port === 465,
-    requireTLS: port === 587,
     auth: { user: settings.smtpUser, pass: settings.smtpPass },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 60000
+    tls: { rejectUnauthorized: false, minVersion: 'TLSv1.2' },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
+    debug: true,
+    logger: true
   });
 }
 function isTransientEmailError(error) {
