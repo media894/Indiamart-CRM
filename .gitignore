@@ -8,3 +8,4 @@ server/server-out.log
 server/server-err.log
 .DS_Store
 Thumbs.db
+scratch/

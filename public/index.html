@@ -566,6 +566,7 @@ tr:hover td{background:var(--bg)}
         <select id="f-clientstatus">
           <option value="New">New</option>
           <option value="Contacted">Contacted</option>
+          <option value="Replied via Email">Replied via Email</option>
           <option value="Replied in IndiaMART">Replied in IndiaMART</option>
           <option value="Negotiating">Negotiating</option>
           <option value="Client">Client</option>
@@ -758,7 +759,7 @@ function renderStats() {
   const hot=leads.filter(l=>l.status==='Hot').length;
   const warm=leads.filter(l=>l.status==='Warm').length;
   const clients=leads.filter(l=>l.clientStatus==='Client').length;
-  const replied=leads.filter(l=>l.clientStatus==='Replied' || l.clientStatus==='Replied in IndiaMART').length;
+  const replied=leads.filter(l=>l.clientStatus==='Replied' || l.clientStatus==='Replied in IndiaMART' || l.clientStatus==='Replied via Email').length;
   document.getElementById('stats-bar').innerHTML=`
     <div class="stat"><div class="stat-val">${leads.length}</div><div class="stat-lbl">Total</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--amber)">${hot}</div><div class="stat-lbl">Hot</div></div>
@@ -877,7 +878,7 @@ function renderLeads() {
       <td>${scoreHtml(l.score)}</td>
       <td>
         <select style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)" onchange="updateClientStatus('${l.id}',this.value)">
-          ${['New','Contacted','Replied in IndiaMART','Negotiating','Client','Lost'].map(s=>`<option value="${s}" ${l.clientStatus===s?'selected':''}>${s}</option>`).join('')}
+          ${['New','Contacted','Replied via Email','Replied in IndiaMART','Negotiating','Client','Lost'].map(s=>`<option value="${s}" ${l.clientStatus===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -1350,12 +1351,23 @@ function renderInbox() {
     const bgColor = isReceived ? '#F0F4F8' : 'var(--surface)';
     const borderColor = isReceived ? '#D9E2EC' : 'var(--border)';
     
+    let statusBadge = '';
+    if (e.direction === 'sent') {
+      if (e.status === 'failed') {
+        statusBadge = `<span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:#FEE2E2;color:#EF4444;font-size:10px;font-weight:700;margin-left:6px" title="${e.error || 'Failed'}">❌ FAILED: ${e.error || 'Unknown Error'}</span>`;
+      } else if (e.status === 'logged') {
+        statusBadge = `<span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:#FEF3C7;color:#D97706;font-size:10px;font-weight:700;margin-left:6px" title="${e.note || 'Logged only'}">⚠️ LOGGED (SMTP Config Missing)</span>`;
+      } else {
+        statusBadge = `<span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:#D1FAE5;color:#10B981;font-size:10px;font-weight:700;margin-left:6px">✓ SENT</span>`;
+      }
+    }
+    
     return `<div class="email-msg ${e.direction||'sent'}" onclick="this.classList.toggle('expanded'); if('${e.direction}'==='received') { markAsRead('${e.id}'); this.style.borderLeft='1px solid ${borderColor}'; this.querySelector('.email-subject').style.fontWeight='600'; }" style="margin-bottom:12px;position:relative;padding:14px;border:1px solid ${borderColor}; ${isUnread ? 'border-left:4px solid var(--purple);' : ''} border-radius:var(--radius);background:${bgColor};cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow-sm)">
       <button class="btn sm danger" style="position:absolute;top:10px;right:10px;padding:3px 8px;font-size:11px;z-index:2;background:var(--surface)" onclick="deleteEmail('${e.id}', event)" title="Delete Email">
         Delete
       </button>
       <div class="email-meta" style="display:flex;justify-content:space-between;padding-right:70px;margin-bottom:6px;font-size:12.5px;color:var(--text)">
-        <span><span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:var(--gray-lt);color:${emailTypeColor};font-size:10px;font-weight:700;margin-right:6px">${emailType}</span> ${isReceived?'<span style="color:var(--blue);font-weight:bold">Reply from</span>':'<span style="color:var(--hint)">Sent to</span>'} <b style="color:var(--purple-dk);margin-left:4px">${l.name}</b>${l.company?' <span style="color:var(--muted)">('+l.company+')</span>':''} <span style="color:var(--muted);margin-left:6px">&lt;${recipient}&gt;</span></span>
+        <span><span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;background:var(--gray-lt);color:${emailTypeColor};font-size:10px;font-weight:700;margin-right:6px">${emailType}</span> ${isReceived?'<span style="color:var(--blue);font-weight:bold">Reply from</span>':'<span style="color:var(--hint)">Sent to</span>'} <b style="color:var(--purple-dk);margin-left:4px">${l.name}</b>${l.company?' <span style="color:var(--muted)">('+l.company+')</span>':''} <span style="color:var(--muted);margin-left:6px">&lt;${recipient}&gt;</span> ${statusBadge}</span>
         <span style="color:var(--muted)">${new Date(e.sentAt||e.receivedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</span>
       </div>
       <div class="email-subject" style="padding-right:70px;font-weight:600;margin-bottom:8px;font-size:13.5px">${e.subject||'(no subject)'}</div>

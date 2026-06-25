@@ -1610,7 +1610,7 @@ async function syncImapReplies() {
       addedCount++;
 
       if (matchingLead.clientStatus === 'Prospect' || matchingLead.clientStatus === 'New' || matchingLead.clientStatus === 'Contacted') {
-        matchingLead.clientStatus = 'Replied in IndiaMART';
+        matchingLead.clientStatus = 'Replied via Email';
         matchingLead.updatedAt = new Date().toISOString();
       }
     }
