@@ -419,6 +419,61 @@ async function sendMailWithRetry(transporter, mailOpts, attempts = 3) {
   }
   throw lastError;
 }
+async function sendEmailThroughProvider(settings, mailOpts) {
+  const isBrevo = String(settings.smtpHost || '').includes('brevo.com') || 
+                  String(settings.smtpPass || '').startsWith('xsmtpsib-') || 
+                  String(settings.smtpPass || '').startsWith('xkeysib-');
+  
+  if (isBrevo) {
+    console.log('[Email] Routing through Brevo HTTP API to bypass port restrictions.');
+    const apiAttachments = [];
+    if (Array.isArray(mailOpts.attachments)) {
+      for (const att of mailOpts.attachments) {
+        if (att.path && fs.existsSync(att.path)) {
+          try {
+            const fileContent = fs.readFileSync(att.path).toString('base64');
+            apiAttachments.push({
+              name: att.filename || path.basename(att.path),
+              content: fileContent
+            });
+          } catch (e) {
+            console.error('[Email] Failed to convert attachment to base64:', att.path, e.message);
+          }
+        }
+      }
+    }
+
+    const payload = {
+      sender: { name: 'ODD INFOTECH', email: settings.smtpUser },
+      to: [{ email: mailOpts.to }],
+      subject: mailOpts.subject,
+      htmlContent: mailOpts.html || mailOpts.text?.replace(/\n/g, '<br>')
+    };
+
+    if (apiAttachments.length > 0) {
+      payload.attachment = apiAttachments;
+    }
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'api-key': settings.smtpPass
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const resJson = await response.json();
+    if (!response.ok) {
+      throw new Error(`Brevo API: ${resJson.message || response.statusText || JSON.stringify(resJson)}`);
+    }
+    return resJson;
+  } else {
+    const transporter = createSmtpTransport(settings);
+    return await sendMailWithRetry(transporter, mailOpts);
+  }
+}
 function getPublicAttachment(assetPath, filename, extra = {}) {
   const cleanPath = String(assetPath || '').replace(/^\/+/, '');
   const relativePath = cleanPath.startsWith('assets/') ? cleanPath : path.join('assets', cleanPath);
@@ -1423,7 +1478,6 @@ async function triggerAutoResponse(lead, settings, data) {
   
   if (isSmtpConfigured(settings)) {
     try {
-      const transporter = createSmtpTransport(settings);
       const mailOpts = {
         from: settings.smtpUser,
         to: lead.email,
@@ -1432,7 +1486,7 @@ async function triggerAutoResponse(lead, settings, data) {
         html: bodyHtml,
         attachments: getDefaultProposalAttachments()
       };
-      await sendMailWithRetry(transporter, mailOpts);
+      await sendEmailThroughProvider(settings, mailOpts);
       console.log(`[AutoResponse] Sent to ${lead.email} successfully with attachments.`);
       emailRecord.status = 'sent';
 
@@ -2275,7 +2329,6 @@ app.post('/api/send-email', requireAutomationOn, async (req, res) => {
 
   if (isSmtpConfigured(settings)) {
     try {
-      const transporter = createSmtpTransport(settings);
       const mailOpts = {
         from: settings.smtpUser,
         to,
@@ -2283,7 +2336,7 @@ app.post('/api/send-email', requireAutomationOn, async (req, res) => {
         html: String(body || '').replace(/\n/g,'<br>'),
         attachments: buildUploadedAttachments(attachments)
       };
-      await sendMailWithRetry(transporter, mailOpts);
+      await sendEmailThroughProvider(settings, mailOpts);
       res.json({ ok: true, sent: true, emailId: email.id });
     } catch (e) { res.json({ ok: true, sent: false, logged: true, error: e.message, emailId: email.id }); }
   } else {
@@ -2311,11 +2364,6 @@ app.post('/api/send-bulk-email', requireAutomationOn, async (req, res) => {
   }
   if (!targets.length) return res.json({ ok: true, sent: 0, failed: 0, total: 0, results: [] });
 
-  let transporter = null;
-  if (isSmtpConfigured(settings)) {
-    transporter = createSmtpTransport(settings);
-  }
-
   const results = [];
   for (const lead of targets) {
     const personalizedSubject = subject.replace(/\{\{\s*name\s*\}\}/gi, lead.name || '').replace(/\{\{\s*company\s*\}\}/gi, lead.company || '').replace(/\{\{\s*product\s*\}\}/gi, lead.product || '');
@@ -2324,7 +2372,7 @@ app.post('/api/send-bulk-email', requireAutomationOn, async (req, res) => {
     const email = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), leadId: lead.id, to: lead.email, subject: personalizedSubject, body: personalizedBody, direction: 'sent', sentAt: new Date().toISOString(), attachments: attachments || [], bulk: true };
 
     let sent = false, error = null;
-    if (transporter) {
+    if (isSmtpConfigured(settings)) {
       try {
         const mailOpts = {
           from: settings.smtpUser,
@@ -2333,7 +2381,7 @@ app.post('/api/send-bulk-email', requireAutomationOn, async (req, res) => {
           html: personalizedBody.replace(/\n/g, '<br>'),
           attachments: buildUploadedAttachments(attachments)
         };
-        await sendMailWithRetry(transporter, mailOpts);
+        await sendEmailThroughProvider(settings, mailOpts);
         sent = true;
       } catch (e) { error = e.message; }
     }
