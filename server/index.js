@@ -1557,6 +1557,11 @@ async function syncImapReplies() {
   let imapHost = 'imap.gmail.com';
   if (settings.smtpHost.includes('gmail.com')) {
     imapHost = 'imap.gmail.com';
+  } else if (settings.smtpHost.includes('brevo.com') || settings.smtpHost.includes('sendinblue.com')) {
+    // Brevo is SMTP-only and has no IMAP. Replies land in your actual Gmail inbox.
+    imapHost = 'imap.gmail.com';
+  } else if (settings.smtpHost.includes('outlook') || settings.smtpHost.includes('office365') || settings.smtpHost.includes('hotmail')) {
+    imapHost = 'outlook.office365.com';
   } else {
     imapHost = settings.smtpHost.replace('smtp', 'imap');
   }
