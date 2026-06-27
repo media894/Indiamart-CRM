@@ -427,15 +427,28 @@ async function sendEmailThroughProvider(settings, mailOpts) {
   if (isBrevo) {
     console.log('[Email] Routing through Brevo HTTP API to bypass port restrictions.');
     const apiAttachments = [];
+    let totalAttachmentSize = 0;
+    let attachmentsDropped = false;
+
     if (Array.isArray(mailOpts.attachments)) {
       for (const att of mailOpts.attachments) {
         if (att.path && fs.existsSync(att.path)) {
           try {
+            const stats = fs.statSync(att.path);
+            const estimatedBase64Size = Math.ceil(stats.size * 1.37);
+            
+            if (totalAttachmentSize + estimatedBase64Size > 18 * 1024 * 1024) {
+              console.warn('[Email] Dropping attachment to stay under 20MB limit:', att.path);
+              attachmentsDropped = true;
+              continue;
+            }
+
             const fileContent = fs.readFileSync(att.path).toString('base64');
             apiAttachments.push({
               name: att.filename || path.basename(att.path),
               content: fileContent
             });
+            totalAttachmentSize += fileContent.length;
           } catch (e) {
             console.error('[Email] Failed to convert attachment to base64:', att.path, e.message);
           }
@@ -443,11 +456,16 @@ async function sendEmailThroughProvider(settings, mailOpts) {
       }
     }
 
+    let finalHtml = mailOpts.html || mailOpts.text?.replace(/\\n/g, '<br>') || '';
+    if (attachmentsDropped) {
+      finalHtml += '<br><br><small style="color:#d9534f;font-weight:bold;">[System Note: One or more attachments were automatically removed from this email because they exceeded the 20MB size limit.]</small>';
+    }
+
     const payload = {
       sender: { name: 'ODD INFOTECH', email: settings.smtpUser },
       to: [{ email: mailOpts.to }],
       subject: mailOpts.subject,
-      htmlContent: mailOpts.html || mailOpts.text?.replace(/\n/g, '<br>')
+      htmlContent: finalHtml
     };
 
     if (apiAttachments.length > 0) {
@@ -486,12 +504,7 @@ function getPublicAttachment(assetPath, filename, extra = {}) {
 }
 function getDefaultProposalAttachments() {
   return [
-    getPublicAttachment('/assets/portfolio.pdf', 'Oddinfotech Portfolio 2025.pdf'),
-    getPublicAttachment('/assets/signature.gif', 'Email signature - 3.gif', {
-      cid: 'signature_gif',
-      contentType: 'image/gif',
-      contentDisposition: 'inline'
-    })
+    getPublicAttachment('/assets/portfolio.pdf', 'Oddinfotech Portfolio 2025.pdf')
   ].filter(Boolean);
 }
 function buildUploadedAttachments(attachments = []) {
@@ -1385,7 +1398,7 @@ function getGreetingEmailHtml(lead) {
       Contact : +91 98941 89152<br>
       Website: <a href="https://www.oddinfotech.com" style="color: #1155cc;">www.oddinfotech.com</a>
     </p>
-    <img src="cid:signature_gif" alt="Sankar G - MD" style="display: block; width: 600px; max-width: 100%; height: auto; border: 0; outline: none; text-decoration: none;">
+    <img src="https://indiamart-crm.onrender.com/assets/signature.gif" alt="Sankar G - MD" style="display: block; width: 600px; max-width: 100%; height: auto; border: 0; outline: none; text-decoration: none;">
   </div>
 </body>
 </html>`;
