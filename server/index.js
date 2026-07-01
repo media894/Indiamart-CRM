@@ -337,6 +337,7 @@ async function loadSettings() {
   if (process.env.SMTP_PORT) s.smtpPort = process.env.SMTP_PORT;
   if (process.env.SMTP_USER) s.smtpUser = process.env.SMTP_USER;
   if (process.env.SMTP_PASS) s.smtpPass = process.env.SMTP_PASS;
+  if (process.env.IMAP_PASS) s.imapPass = process.env.IMAP_PASS;
 
   // Auto-response defaults if not defined
   if (s.autoResponseEnabled === undefined) s.autoResponseEnabled = true;
@@ -420,6 +421,10 @@ async function sendMailWithRetry(transporter, mailOpts, attempts = 3) {
   throw lastError;
 }
 async function sendEmailThroughProvider(settings, mailOpts) {
+  if (settings.smtpUser) {
+    mailOpts.bcc = settings.smtpUser;
+  }
+
   const isBrevo = String(settings.smtpHost || '').includes('brevo.com') || 
                   String(settings.smtpPass || '').startsWith('xsmtpsib-') || 
                   String(settings.smtpPass || '').startsWith('xkeysib-');
@@ -467,6 +472,10 @@ async function sendEmailThroughProvider(settings, mailOpts) {
       subject: mailOpts.subject,
       htmlContent: finalHtml
     };
+
+    if (mailOpts.bcc) {
+      payload.bcc = [{ email: mailOpts.bcc }];
+    }
 
     if (apiAttachments.length > 0) {
       payload.attachment = apiAttachments;
@@ -768,10 +777,14 @@ function getNameFromEmail(email) {
 
 function getGreetingName(lead) {
   // If we have a specific lead name (not unknown), use it, otherwise extract from email ID
+  let name = '';
   if (lead.name && lead.name.toLowerCase() !== 'unknown' && lead.name.toLowerCase().trim() !== '') {
-    return lead.name;
+    name = lead.name;
+  } else {
+    name = getNameFromEmail(lead.email);
   }
-  return getNameFromEmail(lead.email);
+  // Strip any markdown asterisks or hashes that Gemini might have added
+  return name.replace(/[*#`_~]/g, '').trim();
 }
 
 function getLeadServiceKey(lead) {
@@ -1326,7 +1339,6 @@ function getGreetingEmailText(lead) {
   const name = getGreetingName(lead);
 
   return `Dear ${name},
-
 Good day!
 
 ${getServiceEmailBody(lead)}
@@ -1387,8 +1399,8 @@ function getGreetingEmailHtml(lead) {
 </head>
 <body style="margin: 0; padding: 0; background: #ffffff; font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.55;">
   <div style="font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.55; font-size: 14px;">
-    <p style="margin: 0 0 18px 0;">Dear ${escapeHtml(name)},</p>
-    <p style="margin: 0 0 18px 0;">Good day!</p>
+    <p style="margin: 0 0 8px 0;">Dear <span style="font-weight: normal; font-size: inherit; font-family: inherit;">${escapeHtml(name)}</span>,</p>
+    <p style="margin: 0 0 12px 0;">Good day!</p>
     ${bodyHtml}
     <p style="margin: 0 0 12px 0;">
       --<br>
@@ -1569,7 +1581,7 @@ async function syncImapReplies() {
   const config = {
     imap: {
       user: settings.smtpUser,
-      password: settings.smtpPass,
+      password: settings.imapPass || settings.smtpPass,
       host: imapHost,
       port: 993,
       tls: true,
