@@ -2139,7 +2139,8 @@ async function runBackgroundSync() {
   }
 }
 
-setTimeout(runBackgroundSync, 10 * 1000);
+// Wait 7 minutes on startup before first sync to avoid IndiaMART rate limit during redeploys
+setTimeout(runBackgroundSync, 7 * 60 * 1000);
 setInterval(runBackgroundSync, AUTO_SYNC_INTERVAL_MS);
 
 // ─── AI Qualify (Gemini) ──────────────────────────────────────────────────────
