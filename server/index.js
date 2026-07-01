@@ -953,7 +953,7 @@ Looking forward to the possibility of a successful collaboration and a prosperou
 
 function getServiceEmailBody(lead) {
   const templates = {
-    embroidery: `This is Sankar on behalf of ODD INFOTECH. Our embroidery digitizing services gives you access to a plethora of benefits along with the high-quality artwork that speaks for itself.  We offer aesthetic and flawless custom digitizing services and have the most talented resources at hand who ensure that you don't get anything less than perfection. We use the latest and greatest digitizing software to help produce high-quality products that will help bring your brand out into the spotlight. Some of the key factors for you to choose ODD INFOTECH as your custom embroidery digitizing company are listed here:
+    embroidery: `This is Sankar on behalf of ODD INFOTECH. Thank you for your inquiry regarding "${lead.product || 'Embroidery Services'}". Our embroidery digitizing services gives you access to a plethora of benefits along with the high-quality artwork that speaks for itself.  We offer aesthetic and flawless custom digitizing services and have the most talented resources at hand who ensure that you don't get anything less than perfection. We use the latest and greatest digitizing software to help produce high-quality products that will help bring your brand out into the spotlight. Some of the key factors for you to choose ODD INFOTECH as your custom embroidery digitizing company are listed here:
 
 * Flexible Pricing Plans  (Quote and Portfolio attached for your reference)
 * Information Security (Data is handled with utmost priority and confidentially)
@@ -971,7 +971,7 @@ Kindly find the attached quote and portfolio for your reference. Also kindly adv
 
 Looking forward to a very successful business relationship in the coming years.`,
 
-    tshirtprinting: `This is Sankar from ODD INFOTECH, and I am pleased to introduce our professional T Shirt Printing Services designed for corporate branding, promotional campaigns, events, and custom apparel requirements.
+    tshirtprinting: `This is Sankar from ODD INFOTECH. Thank you for your inquiry regarding "${lead.product || 'T Shirt Printing Services'}". I am pleased to introduce our professional T Shirt Printing Services designed for corporate branding, promotional campaigns, events, and custom apparel requirements.
 
 At ODD INFOTECH, we specialize in high-quality custom T-shirt printing solutions that help businesses create strong brand visibility. Our services include logo printing, text printing, and custom graphic printing on all types of T-shirts such as round neck, V-neck, U-neck, and polo T-shirts.
 
@@ -1017,7 +1017,7 @@ Kindly find our company profile and service details attached for your reference.
 
 We look forward to working with you.`,
 
-    tshirtembroidery: `This is Sankar from ODD INFOTECH, and I am pleased to introduce our professional T Shirt Embroidery Services designed to deliver premium quality branding solutions for corporate, promotional, and industrial requirements.
+    tshirtembroidery: `This is Sankar from ODD INFOTECH. Thank you for your inquiry regarding "${lead.product || 'T Shirt Embroidery Services'}". I am pleased to introduce our professional T Shirt Embroidery Services designed to deliver premium quality branding solutions for corporate, promotional, and industrial requirements.
 
 At ODD INFOTECH, we specialize in high-quality computerized machine embroidery on all types of T-shirts including round neck, V-neck, U-neck, and polo T-shirts. Our embroidery services ensure clean stitching, precise detailing, and a long-lasting premium finish that enhances your brand identity.
 
