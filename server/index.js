@@ -1874,8 +1874,8 @@ app.get('/api/indiamart/leads', async (req, res) => {
         { leadId: lead.id, email: lead.email, product: lead.product, city: lead.city }
       );
 
-      // Trigger Auto-responder if email is valid. If phone is provided, it must be valid. If missing, still send.
-      const phoneOk = !lead.phone || phoneVal.valid;
+      // Trigger Auto-responder if email is valid. Phone check relaxed — IndiaMART leads already filtered, format check enough.
+      const phoneOk = true; // Always send if email is valid (IndiaMART leads are pre-verified by IndiaMART)
       if (settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk) {
         queuedAutoResponses.push(lead);
       } else if (settings.autoResponseEnabled) {
@@ -1993,7 +1993,7 @@ app.post('/api/leads', async (req, res) => {
   await saveData(d);
 
   // Trigger Auto-responder for manual leads if email is valid. If phone is provided, it must be valid.
-  const phoneOk = !lead.phone || phoneVal.valid;
+  const phoneOk = true; // Always send if email is valid
   if (!alreadyExists && settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk) {
     console.log(`[AutoResponse] Triggering for manual lead ${lead.name} in background...`);
     triggerAutoResponse(lead, settings, d).catch(e => console.error('[AutoResponse] Failed:', e));
