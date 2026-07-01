@@ -2348,6 +2348,33 @@ app.delete('/api/emails/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── ONE-OFF RESEND TO ANAND AND PATTULINGAM ─────────────────────────────
+app.get('/api/force-resend-auto', async (req, res) => {
+  const d = await loadData();
+  const settings = await loadSettings();
+  
+  const targets = d.leads.filter(l => 
+    l.name && (l.name.toLowerCase().includes('anand') || l.name.toLowerCase().includes('pattulingam'))
+  );
+  
+  if (targets.length === 0) {
+    return res.json({ message: 'Leads not found' });
+  }
+
+  const results = [];
+  for (const lead of targets) {
+    console.log(`[ForceResend] Triggering auto response for ${lead.name}...`);
+    try {
+      await triggerAutoResponse(lead, settings, d);
+      results.push({ name: lead.name, status: 'success' });
+    } catch (e) {
+      results.push({ name: lead.name, status: 'failed', error: e.message });
+    }
+  }
+  
+  res.json({ message: 'Force resend completed', results });
+});
+
 app.post('/api/send-email', requireAutomationOn, async (req, res) => {
   const settings = await loadSettings();
   const { leadId, to, subject, body, attachments } = req.body;
