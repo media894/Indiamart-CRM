@@ -6,45 +6,65 @@
 <title>IndiaMART Lead CRM</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#f7f7f5;--surface:#fff;--border:#e4e4e0;--border2:#d0d0cc;
-  --text:#1a1a18;--muted:#6b6b67;--hint:#9b9b97;
-  --purple:#534AB7;--purple-lt:#EEEDFE;--purple-dk:#3C3489;
-  --teal:#1D9E75;--teal-lt:#E1F5EE;
-  --amber:#BA7517;--amber-lt:#FAEEDA;
-  --blue:#185FA5;--blue-lt:#E6F1FB;
-  --red:#A32D2D;--red-lt:#FCEBEB;
-  --green:#3B6D11;--green-lt:#EAF3DE;
-  --gray:#5F5E5A;--gray-lt:#F1EFE8;
-  --radius:8px;--radius-lg:12px;
-  --shadow-sm:0 1px 2px rgba(20,20,15,.04);
-  --shadow-md:0 4px 16px rgba(20,20,15,.08);
-  --shadow-lg:0 16px 40px rgba(20,20,15,.14);
+:root {
+  --bg: rgba(20, 17, 15, 0.45); --surface: rgba(28, 25, 23, 0.6); --border: rgba(255, 255, 255, 0.08); --border2: rgba(255, 255, 255, 0.15);
+  --text: #ffffff; --muted: rgba(255, 255, 255, 0.65); --hint: rgba(255, 255, 255, 0.45);
+  --purple: #e2b865; --purple-lt: rgba(226, 184, 101, 0.18); --purple-dk: #f3e8d2;
+  --teal: #10b981; --teal-lt: rgba(16, 185, 129, 0.18);
+  --amber: #fbbf24; --amber-lt: rgba(251, 191, 36, 0.18);
+  --blue: #f59e0b; --blue-lt: rgba(245, 158, 11, 0.18);
+  --red: #f87171; --red-lt: rgba(248, 113, 113, 0.18);
+  --green: #a3e635; --green-lt: rgba(163, 230, 53, 0.18);
+  --gray: #d4d4d8; --gray-lt: rgba(212, 212, 216, 0.18);
+  --radius: 12px; --radius-lg: 16px;
+  --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 20px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  --shadow-lg: 0 20px 30px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.15);
 }
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
-a{color:var(--purple);text-decoration:none}
+body { 
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+  background: radial-gradient(at 0% 0%, #2e2a24 0px, transparent 50%), 
+              radial-gradient(at 100% 0%, #1c1917 0px, transparent 50%), 
+              radial-gradient(at 100% 100%, #0c0a09 0px, transparent 50%), 
+              radial-gradient(at 0% 100%, #14110f 0px, transparent 50%), 
+              #1c1917; 
+  background-attachment: fixed;
+  color: var(--text); 
+  font-size: 14px; 
+  line-height: 1.5; 
+  -webkit-font-smoothing: antialiased; 
+}
+a { color: var(--purple); text-decoration: none; }
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
-::-webkit-scrollbar-thumb:hover{background:var(--hint)}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
 
 /* Layout */
 .shell{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
-.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column}
+.sidebar{
+  background: rgba(24, 20, 18, 0.65);
+  border-right:1px solid var(--border);
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
 .sidebar-logo{padding:20px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.sidebar-logo .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--purple),#7C74E0);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(83,74,183,.35)}
+.sidebar-logo .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--purple),#b45309);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(226,184,101,.35)}
 .sidebar-logo .logo-mark svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.2}
 .sidebar-logo h1{font-size:14.5px;font-weight:650;letter-spacing:-0.2px}
 .sidebar-logo p{font-size:11px;color:var(--muted);margin-top:1px}
 .sidebar-nav{padding:12px 8px;flex:1}
 .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--muted);transition:background .15s,color .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
-.nav-item:hover{background:var(--bg);color:var(--text)}
-.nav-item.active{background:var(--purple-lt);color:var(--purple-dk);font-weight:500}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.nav-item.active{background:rgba(226, 184, 101, 0.2);color:#ffffff;font-weight:600;box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 1px rgba(255,255,255,0.2);}
 .nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .nav-badge{margin-left:auto;background:var(--red-lt);color:var(--red);font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
 .sidebar-footer{padding:12px 8px;border-top:1px solid var(--border)}
-.sync-btn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:500;background:var(--surface);transition:all .12s}
-.sync-btn:hover{background:var(--bg);box-shadow:var(--shadow-sm)}
+.sync-btn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:500;background:rgba(255,255,255,0.05);color:var(--text);transition:all .12s;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);}
+.sync-btn:hover{background:rgba(255,255,255,0.1);box-shadow:var(--shadow-sm)}
 .sync-btn svg{width:14px;height:14px;stroke:var(--purple);fill:none;stroke-width:2}
 .off-btn{margin-top:8px;border-color:var(--red);color:var(--red)}
 .off-btn svg{stroke:currentColor}
@@ -55,7 +75,16 @@ a{color:var(--purple);text-decoration:none}
 .sync-spin{animation:spin .8s linear infinite}
 
 .main{overflow:hidden;display:flex;flex-direction:column}
-.topbar{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface)}
+.topbar{
+  padding:16px 24px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background: rgba(15, 12, 35, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
 .topbar h2{font-size:16px;font-weight:600;flex:1}
 .topbar .topbar-sub{font-size:12px;color:var(--muted);margin-top:1px;font-weight:400}
 .view{display:none;flex:1;overflow-y:auto}
@@ -63,20 +92,29 @@ a{color:var(--purple);text-decoration:none}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 
 /* Buttons */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;cursor:pointer;background:var(--surface);color:var(--text);transition:all .12s;font-family:inherit}
-.btn:hover{background:var(--bg)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;cursor:pointer;background:rgba(255,255,255,0.06);color:var(--text);transition:all .12s;font-family:inherit;backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);}
+.btn:hover{background:rgba(255,255,255,0.12)}
 .btn:active{transform:translateY(1px)}
-.btn.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
-.btn.primary:hover{background:var(--purple-dk);box-shadow:0 2px 10px rgba(83,74,183,.3)}
-.btn.primary:disabled{background:var(--hint);border-color:var(--hint);cursor:not-allowed;box-shadow:none}
+.btn.primary{background:linear-gradient(135deg, var(--purple), #b45309);color:#fff;border-color:var(--purple);box-shadow: 0 4px 10px rgba(226, 184, 101, 0.25);}
+.btn.primary:hover{background:linear-gradient(135deg, #b45309, #78350f);box-shadow:0 4px 15px rgba(226,184,101,.4)}
+.btn.primary:disabled{background:rgba(255,255,255,0.1);border-color:transparent;color:var(--hint);cursor:not-allowed;box-shadow:none}
 .btn.sm{padding:5px 10px;font-size:12px}
-.btn.danger{color:var(--red);border-color:var(--red)}
+.btn.danger{color:var(--red);border-color:var(--red);background:rgba(248, 113, 113, 0.05);}
 .btn.danger:hover{background:var(--red-lt)}
 .btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Stats */
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:20px 24px 0}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;transition:box-shadow .15s,transform .15s}
+.stat{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  transition: box-shadow .15s, transform .15s;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-sm);
+}
 .stat:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .stat-val{font-size:24px;font-weight:600;letter-spacing:-1px}
 .stat-lbl{font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
@@ -85,17 +123,26 @@ a{color:var(--purple);text-decoration:none}
 .filters{display:flex;align-items:center;gap:8px;padding:16px 24px 12px;flex-wrap:wrap}
 .pill{padding:5px 12px;border-radius:20px;font-size:12px;border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--muted);transition:all .12s}
 .pill:hover{border-color:var(--border2);color:var(--text)}
-.pill.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.pill.active{background:linear-gradient(135deg, var(--purple), #b45309);color:#fff;border-color:var(--purple);box-shadow: 0 4px 8px rgba(226, 184, 101, 0.2);}
 .search-box{flex:1;max-width:280px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit}
 
 /* Lead table */
-.leads-table{margin:0 24px 24px;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface);box-shadow:var(--shadow-sm)}
+.leads-table{
+  margin:0 24px 24px;
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  background:var(--surface);
+  box-shadow:var(--shadow-md);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
 table{width:100%;border-collapse:collapse}
-th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 14px;text-align:left;background:var(--bg);border-bottom:1px solid var(--border);font-weight:500}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 14px;text-align:left;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);font-weight:500}
 td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px}
 tr:last-child td{border-bottom:none}
 tr{transition:background .1s}
-tr:hover td{background:var(--bg)}
+tr:hover td{background:rgba(255,255,255,0.03)}
 .lead-name-cell{font-weight:500;cursor:pointer}
 .lead-name-cell:hover{color:var(--purple-dk);text-decoration:underline}
 .lead-sub{font-size:11px;color:var(--muted);margin-top:1px}
@@ -120,15 +167,28 @@ tr:hover td{background:var(--bg)}
 
 /* Score bar */
 .score-wrap{display:flex;align-items:center;gap:6px}
-.score-bar{height:5px;width:60px;background:var(--bg);border-radius:3px;overflow:hidden}
+.score-bar{height:5px;width:60px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
 .score-fill{height:100%;border-radius:3px}
 .score-num{font-size:12px;font-weight:500}
 
 /* Modal */
-.overlay{display:none;position:fixed;inset:0;background:rgba(20,20,18,.4);backdrop-filter:blur(2px);z-index:1000;align-items:center;justify-content:center}
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,10,15,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center}
 .overlay.open{display:flex;animation:overlayin .15s ease}
 @keyframes overlayin{from{opacity:0}to{opacity:1}}
-.modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:min(580px,95vw);max-height:90vh;overflow-y:auto;position:relative;box-shadow:var(--shadow-lg);animation:modalin .18s cubic-bezier(.2,.8,.3,1)}
+.modal{
+  background:rgba(20, 18, 48, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius:var(--radius-lg);
+  padding:24px;
+  width:min(580px,95vw);
+  max-height:90vh;
+  overflow-y:auto;
+  position:relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  animation:modalin .18s cubic-bezier(.2,.8,.3,1);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+}
 @keyframes modalin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .modal-title{font-size:16px;font-weight:600}
@@ -336,10 +396,7 @@ tr:hover td{background:var(--bg)}
       All Leads
       <span class="nav-badge" id="badge-total">0</span>
     </button>
-    <button class="nav-item" onclick="nav('qualify',this)">
-      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      AI Qualify
-    </button>
+    <!-- AI Qualify link removed -->
     <button class="nav-item" onclick="nav('inbox',this)">
       <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       Email Inbox
@@ -354,10 +411,7 @@ tr:hover td{background:var(--bg)}
       Followups
       <span class="nav-badge" id="badge-fu" style="display:none">!</span>
     </button>
-    <button class="nav-item" onclick="nav('export',this)">
-      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export CSV
-    </button>
+    <!-- Export CSV link removed -->
 
 
 
@@ -381,7 +435,10 @@ tr:hover td{background:var(--bg)}
 <!-- ── Leads view ── -->
 <div class="view active" id="view-leads">
   <div class="topbar">
-    <h2>All Leads</h2>
+    <div style="display:flex; align-items:center; gap:20px; font-size: 1.3em; font-weight: bold;">
+      <div id="tab-W" style="cursor:pointer; border-bottom: 3px solid var(--purple); color:#fff; padding-bottom: 5px;" onclick="setLeadType('W')">Direct Enquiries</div>
+      <div id="tab-BL" style="cursor:pointer; color:var(--muted); padding-bottom: 5px;" onclick="setLeadType('BL')">Buy Leads</div>
+    </div>
     <div style="display:flex;gap:8px">
       <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="uploadExcelFile(this)">
       <button class="btn sm" onclick="document.getElementById('excel-file-input').click()">
@@ -395,14 +452,17 @@ tr:hover td{background:var(--bg)}
     </div>
   </div>
   <div class="stats" id="stats-bar"></div>
-  <div class="filters">
+  <div class="filters" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
     <button class="pill active" onclick="setFilter('All',this)">All</button>
     <button class="pill" onclick="setFilter('Hot',this)">🔥 Hot</button>
     <button class="pill" onclick="setFilter('Warm',this)">☀️ Warm</button>
     <button class="pill" onclick="setFilter('Cold',this)">❄️ Cold</button>
     <button class="pill" onclick="setFilter('New',this)">✦ New</button>
-    <button class="pill" onclick="setFilter('Client',this)">✅ Client</button>
     <input class="search-box" type="text" placeholder="Search name, company, product…" oninput="renderLeads()">
+    <button class="btn sm" style="margin-left:auto; background:#10b981; color:white; border-color:#10b981" onclick="downloadFilteredExcel()">
+      <svg viewBox="0 0 24 24" style="stroke:white"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export Excel
+    </button>
   </div>
   <div class="leads-table">
     <table>
@@ -631,12 +691,36 @@ tr:hover td{background:var(--bg)}
   </div>
 </div>
 
+<!-- AI Analysis Modal -->
+<div class="overlay" id="modal-ai">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">AI Lead Analysis</span>
+      <button class="modal-close" onclick="closeModal('ai')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="ai-modal-content"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const API = '/api';
 let leads = [], emails = [], followups = [];
 let filterStatus = 'All', editLeadId = null, emailLeadId = null;
+let currentLeadType = 'W';
+
+function setLeadType(type) {
+  currentLeadType = type;
+  document.getElementById('tab-W').style.borderBottom = type === 'W' ? '3px solid var(--purple)' : 'none';
+  document.getElementById('tab-W').style.color = type === 'W' ? '#fff' : 'var(--muted)';
+  
+  document.getElementById('tab-BL').style.borderBottom = type === 'BL' ? '3px solid var(--purple)' : 'none';
+  document.getElementById('tab-BL').style.color = type === 'BL' ? '#fff' : 'var(--muted)';
+  
+  renderLeads();
+  renderStats();
+}
 let isScoringAll = false;
 let automationEnabled = true;
 
@@ -756,12 +840,13 @@ async function apiJson(url, options) {
 function renderAll() { renderStats(); renderLeads(); checkBadges(); }
 
 function renderStats() {
-  const hot=leads.filter(l=>l.status==='Hot').length;
-  const warm=leads.filter(l=>l.status==='Warm').length;
-  const clients=leads.filter(l=>l.clientStatus==='Client').length;
-  const replied=leads.filter(l=>l.clientStatus==='Replied' || l.clientStatus==='Replied in IndiaMART' || l.clientStatus==='Replied via Email').length;
+  const currentLeads = leads.filter(l => (l.queryType || 'W') === currentLeadType);
+  const hot=currentLeads.filter(l=>l.status==='Hot').length;
+  const warm=currentLeads.filter(l=>l.status==='Warm').length;
+  const clients=currentLeads.filter(l=>l.clientStatus==='Client' || l.clientStatus==='Closed').length;
+  const replied=currentLeads.filter(l=>l.clientStatus==='Replied' || l.clientStatus==='Replied in IndiaMART' || l.clientStatus==='Replied via Email' || l.clientStatus==='Negotiating').length;
   document.getElementById('stats-bar').innerHTML=`
-    <div class="stat"><div class="stat-val">${leads.length}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat"><div class="stat-val">${currentLeads.length}</div><div class="stat-lbl">Total</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--amber)">${hot}</div><div class="stat-lbl">Hot</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--blue)">${warm}</div><div class="stat-lbl">Warm</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--teal)">${clients}</div><div class="stat-lbl">Clients</div></div>
@@ -806,10 +891,15 @@ function statusBadge(s) {
   return `<span class="badge ${map[s]||'new'}">${s||'New'}</span>`;
 }
 
-function scoreHtml(score) {
-  if (score==null) return '<span style="color:var(--hint);font-size:12px">—</span>';
+function scoreHtml(score, leadId) {
+  if (score == null) {
+    return `<button class="btn sm" style="font-size:11px; padding:3px 6px;" title="Generate AI Score" onclick="showAIAnalysis('${leadId}')">Score Now</button>`;
+  }
   const fill = score>=70?'var(--teal)':score>=40?'var(--blue)':'var(--red)';
-  return `<div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:${score}%;background:${fill}"></div></div><span class="score-num" style="color:${fill}">${score}</span></div>`;
+  return `<div class="score-wrap" style="cursor:pointer; padding: 4px; border-radius: 4px; display: inline-flex;" title="Click to view AI Analysis" onclick="showAIAnalysis('${leadId}')" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+    <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${fill}"></div></div>
+    <span class="score-num" style="color:${fill}">${score}</span>
+  </div>`;
 }
 
 function formatLeadTime(value) {
@@ -831,6 +921,9 @@ function formatLeadTime(value) {
 function renderLeads() {
   const q = document.querySelector('.search-box')?.value?.toLowerCase()||'';
   let filtered = leads.filter(l => {
+    const type = l.queryType || 'W';
+    if (type !== currentLeadType) return false;
+    
     if (filterStatus!=='All' && l.status!==filterStatus && l.clientStatus!==filterStatus) return false;
     if (q && !`${l.name} ${l.company} ${l.product} ${l.email}`.toLowerCase().includes(q)) return false;
     return true;
@@ -875,10 +968,32 @@ function renderLeads() {
         <div style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px">${(l.message||'').slice(0,60)}</div>
       </td>
       <td style="font-size:12px;color:var(--muted)">${[l.city,l.state].filter(Boolean).join(', ')||l.phoneLocation||'—'}</td>
-      <td>${scoreHtml(l.score)}</td>
+      <td>${scoreHtml(l.score, l.id)}</td>
       <td>
         <select style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)" onchange="updateClientStatus('${l.id}',this.value)">
-          ${['New','Contacted','Replied via Email','Replied in IndiaMART','Negotiating','Client','Lost'].map(s=>`<option value="${s}" ${l.clientStatus===s?'selected':''}>${s}</option>`).join('')}
+          ${(() => {
+            let effectiveStatus = l.clientStatus || 'New';
+            if (!l.email) effectiveStatus = 'No Email';
+            else if (l.emailValid === false) effectiveStatus = 'Bounced';
+            else if (effectiveStatus === 'New' && l.emailSent) effectiveStatus = 'Emailed';
+            
+            return ['New','Contacted in IndiaMART','Emailed','Auto-Skipped','Replied via Email','Replied in IndiaMART','Negotiating','Lost','Bounced','No Email'].map(s=>{
+              let positiveActions = ['Contacted in IndiaMART','Emailed','Auto-Skipped','Replied via Email','Replied in IndiaMART','Negotiating'];
+              let isHappened = positiveActions.includes(s) && (
+                               (s === 'Emailed' && l.emailSent) || 
+                               (s === 'Auto-Skipped' && effectiveStatus === 'Auto-Skipped') ||
+                               (l.statusHistory && l.statusHistory.includes(s)) || 
+                               (s === effectiveStatus));
+              let isSelected = (effectiveStatus === s);
+              let style = (isHappened || (isSelected && s !== 'New' && s !== 'Lost' && s !== 'Bounced' && s !== 'No Email')) ? 'color: #10b981; font-weight: bold;' : '';
+              if (s === 'Bounced' && isSelected) style = 'color: #ef4444; font-weight: bold;';
+              if (s === 'No Email' && isSelected) style = 'color: #f59e0b; font-weight: bold;';
+              let label = (isHappened || (isSelected && s !== 'New' && s !== 'Lost' && s !== 'Bounced' && s !== 'No Email')) ? s + ' ✓' : s;
+              if (s === 'Bounced' && isSelected) label = 'Bounced ❌';
+              if (s === 'No Email' && isSelected) label = 'No Email ⚠️';
+              return `<option value="${s}" style="${style}" ${isSelected?'selected':''}>${label}</option>`;
+            }).join('');
+          })()}
         </select>
       </td>
       <td>
@@ -1021,12 +1136,18 @@ function viewLead(id) {
       ${le.length?le.map(e=>`<div class="email-msg ${e.direction||'sent'}"><div class="email-meta">${e.direction==='received'?'↩ Reply':'↗ Sent'} · ${new Date(e.sentAt||e.receivedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</div><div class="email-subject">${e.subject}</div><div class="email-body" style="font-size:12px;margin-top:4px">${(e.body||'').slice(0,200)}</div></div>`).join(''):'<div style="color:var(--hint);font-size:12px">No emails yet</div>'}
     </div>
     <div style="font-size:13px;font-weight:500;margin-bottom:8px">Followup date & time</div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
       <input type="date" id="fu-date-${id}" value="${fu?.date||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;flex:1">
       <input type="time" id="fu-time-${id}" value="${fu?.time||''}" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;width:130px">
     </div>
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px">Followup Email Subject</div>
+    <input type="text" id="fu-subject-${id}" value="${fu?.subject||''}" placeholder="e.g. Checking in - ODD INFOTECH" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;margin-bottom:12px;box-sizing:border-box;background:var(--surface);color:var(--text)">
+    
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px">Followup Email Body</div>
+    <textarea id="fu-body-${id}" placeholder="Type follow-up message here..." style="width:100%;height:80px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;margin-bottom:16px;box-sizing:border-box;resize:vertical;background:var(--surface);color:var(--text)">${fu?.body||''}</textarea>
+
     <div style="display:flex;gap:8px">
-      <button class="btn primary" onclick="saveFollowup('${id}',document.getElementById('fu-date-${id}').value,document.getElementById('fu-time-${id}').value).then(()=>{ closeModal('detail'); renderAll(); })">
+      <button class="btn primary" onclick="saveFollowup('${id}',document.getElementById('fu-date-${id}').value,document.getElementById('fu-time-${id}').value,document.getElementById('fu-subject-${id}').value,document.getElementById('fu-body-${id}').value).then(()=>{ closeModal('detail'); renderAll(); })">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Schedule Followup
       </button>
@@ -1152,6 +1273,21 @@ async function qualify(id) {
     toast(`${l.name} scored ${d.lead.score}/100 — ${d.lead.status}`,'success');
     if (d.qualify?.suggested_subject) { window._lastQualify=d.qualify; }
   } catch(e) { toast('Qualify failed: '+e.message,'error'); }
+}
+
+function showAIAnalysis(id) {
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+  const content = document.getElementById('ai-modal-content');
+  if (l.aiSummary) {
+    content.innerHTML = `<div class="ai-card" style="margin-bottom:0; background: var(--surface);">
+      <b style="font-size:13px;color:var(--text)">Score: ${l.score}/100 &nbsp; ${statusBadge(l.status)}</b>
+      <div class="ai-summary" style="margin-top:12px; font-size:14px; line-height: 1.6;">${l.aiSummary}</div>
+    </div>`;
+  } else {
+    content.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--muted);">No AI analysis available for this lead yet.<br><br><button class="btn primary sm" onclick="qualify('${id}');closeModal('ai');">Generate Score Now</button></div>`;
+  }
+  openModal('ai');
 }
 
 // ─── Email ────────────────────────────────────────────────────────────────────
@@ -1348,8 +1484,8 @@ function renderInbox() {
     const emailType = isReceived ? 'REPLY' : e.bulk ? 'BULK' : e.autoResponse ? 'AUTO' : 'MANUAL';
     const emailTypeColor = e.bulk ? 'var(--amber)' : e.autoResponse ? 'var(--teal)' : isReceived ? 'var(--blue)' : 'var(--purple)';
     const recipient = e.to || l.email || '-';
-    const bgColor = isReceived ? '#F0F4F8' : 'var(--surface)';
-    const borderColor = isReceived ? '#D9E2EC' : 'var(--border)';
+    const bgColor = isReceived ? 'var(--blue-lt)' : 'var(--surface)';
+    const borderColor = isReceived ? 'rgba(96, 165, 250, 0.4)' : 'var(--border)';
     
     let statusBadge = '';
     if (e.direction === 'sent') {
@@ -1414,10 +1550,14 @@ async function logReply() {
 }
 
 // ─── Followups ────────────────────────────────────────────────────────────────
-async function saveFollowup(leadId, date, time) {
+async function saveFollowup(leadId, date, time, subject = '', body = '') {
   if (!requireAutomationOn('Followup')) return;
   const datetime = time ? date + 'T' + time : date;
-  const r=await fetch(`${API}/followups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leadId,date,time:time||'',datetime})}).then(x=>x.json());
+  const r=await fetch(`${API}/followups`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({leadId,date,time:time||'',datetime,subject,body})
+  }).then(x=>x.json());
   if (r.error) { toast(r.error, 'error'); return; }
   const i=followups.findIndex(f=>f.leadId===leadId);
   if(i>=0) followups[i]=r; else followups.push(r);
@@ -1475,23 +1615,27 @@ function renderFollowups() {
   const scheduled=leads.map(l=>({lead:l,fu:followups.find(f=>f.leadId===l.id)})).filter(x=>x.fu?.date).sort((a,b)=>a.fu.date.localeCompare(b.fu.date));
   if (!scheduled.length) { el.innerHTML='<div class="empty">No followups scheduled yet.<br>Set them from the lead detail view.</div>'; return; }
   el.innerHTML=scheduled.map(({lead:l,fu})=>{
-    const overdue=fu.date<today, isToday=fu.date===today;
-    return `<div class="fu-row ${overdue?'fu-overdue':isToday?'fu-today':''}">
+    const overdue=fu.date<today && !fu.sent, isToday=fu.date===today && !fu.sent;
+    return `<div class="fu-row ${fu.sent?'':overdue?'fu-overdue':isToday?'fu-today':''}">
       <div style="flex:1">
         <div style="font-weight:500;font-size:13px">${l.name} <span style="font-weight:400;color:var(--muted)">· ${l.company||''}</span></div>
         <div style="font-size:12px;color:var(--muted)">${l.product||l.email}</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:12px;font-weight:500;color:${overdue?'var(--red)':isToday?'var(--amber)':'var(--text)'}">${overdue?'Overdue · ':isToday?'Today · ':''}${new Date(fu.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}${fu.time?' at '+fu.time:''}</div>
+        <div style="font-size:12px;font-weight:500;color:${fu.sent?'var(--teal)':overdue?'var(--red)':isToday?'var(--amber)':'var(--text)'}">
+          ${fu.sent?'✓ Sent ':overdue?'Overdue · ':isToday?'Today · ':''}
+          ${new Date(fu.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
+          ${fu.time?' at '+fu.time:''}
+        </div>
       </div>
       <div class="fu-actions">
-        <input type="date" value="${fu.date}" onchange="saveFollowup('${l.id}',this.value,document.getElementById('fu-list-time-${l.id}').value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)">
-        <input type="time" id="fu-list-time-${l.id}" value="${fu.time||''}" onchange="saveFollowup('${l.id}',this.previousElementSibling.value,this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);width:100px">
+        <input type="date" value="${fu.date}" onchange="saveFollowup('${l.id}',this.value,document.getElementById('fu-list-time-${l.id}').value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text)" ${fu.sent?'disabled':''}>
+        <input type="time" id="fu-list-time-${l.id}" value="${fu.time||''}" onchange="saveFollowup('${l.id}',this.previousElementSibling.value,this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);width:100px" ${fu.sent?'disabled':''}>
         <button class="btn sm primary" onclick="openEmail('${l.id}')">
           <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
           Mail
         </button>
-        <button type="button" class="btn sm" onclick="stopFollowup('${fu.id||l.id}', event)" title="Stop schedule">
+        <button type="button" class="btn sm" onclick="stopFollowup('${fu.id||l.id}', event)" title="Stop schedule" ${fu.sent?'disabled':''}>
           <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
           Stop
         </button>
@@ -1513,7 +1657,7 @@ function checkBadges() {
     return;
   }
   const today=new Date().toISOString().slice(0,10);
-  const fuDue=followups.filter(f=>f.date&&f.date<=today).length;
+  const fuDue=followups.filter(f=>f.date&&f.date<=today&&!f.sent).length;
   const badgeFu=document.getElementById('badge-fu');
   if (badgeFu) {
     badgeFu.style.display=fuDue?'inline':'none';
@@ -1531,6 +1675,50 @@ function checkBadges() {
 // ─── Export ───────────────────────────────────────────────────────────────────
 function downloadCSV() { window.open(`${API}/export/csv`,'_blank'); }
 
+async function downloadFilteredExcel() {
+  const q = document.querySelector('.search-box')?.value?.toLowerCase()||'';
+  let filtered = leads.filter(l => {
+    const type = l.queryType || 'W';
+    if (type !== currentLeadType) return false;
+    if (filterStatus!=='All' && l.status!==filterStatus && l.clientStatus!==filterStatus) return false;
+    if (q && !`${l.name} ${l.company} ${l.product} ${l.email}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  
+  if (!filtered.length) {
+    toast('No leads to export.', 'error');
+    return;
+  }
+  
+  const leadIds = filtered.map(l => l.id);
+  const btn = document.querySelector('.filters .btn');
+  const oldText = btn.innerHTML;
+  if(btn) btn.innerHTML = 'Generating...';
+  
+  try {
+    const res = await fetch(`${API}/export/excel/filtered`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadIds })
+    });
+    if (!res.ok) throw new Error('Failed to generate excel');
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads_${currentLeadType}_${filterStatus}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    toast('Excel downloaded successfully!', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    if(btn) btn.innerHTML = oldText;
+  }
+}
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }

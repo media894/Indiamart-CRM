@@ -1,5 +1,6 @@
 node_modules/
 .env
+public/assets/uploads/
 server/data.json
 server/settings.json
 server-out.log

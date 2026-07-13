@@ -41,6 +41,8 @@ const AUTO_EMAIL_DELAY_MS = 20000; // 20 seconds between emails = 3 emails per m
 // ─── Live Activity Stream (SSE) ───────────────────────────────────────────────
 const activityLog = []; // in-memory activity history (last 200)
 const sseClients = new Set(); // connected browser clients
+const sendingEmails = new Set(); // track in-progress email sends to prevent duplicates
+
 
 function pushActivity(type, title, detail, extra = {}) {
   const event = {
@@ -303,15 +305,18 @@ function hasExistingLead(data, { email, phone, indiamartId }) {
 }
 function hasAutoResponseForLead(data, lead) {
   const emailKey = normalizeEmail(lead.email);
-  const serviceKey = getLeadServiceKey(lead);
+  if (!emailKey) return true;
+  
+  if (sendingEmails.has(emailKey)) {
+    return true;
+  }
+
   return (data.emails || []).some(email => {
     if (!email.autoResponse) return false;
     if (email.status === 'failed') return false;
     
-    const isSameService = email.serviceKey === serviceKey;
-    const isSameLead = (email.leadId === lead.id) || (emailKey && normalizeEmail(email.to) === emailKey);
-    
-    return isSameLead && isSameService;
+    const isSameLead = (email.leadId === lead.id) || (normalizeEmail(email.to) === emailKey);
+    return isSameLead;
   });
 }
 async function loadSettings() {
@@ -394,7 +399,8 @@ function createSmtpTransport(settings) {
     greetingTimeout: 15000,
     socketTimeout: 30000,
     debug: true,
-    logger: true
+    logger: true,
+    family: 4 // Force IPv4 to prevent IPv6 timeouts in Node 17+
   });
 }
 function isTransientEmailError(error) {
@@ -421,8 +427,16 @@ async function sendMailWithRetry(transporter, mailOpts, attempts = 3) {
   throw lastError;
 }
 async function sendEmailThroughProvider(settings, mailOpts) {
-  if (settings.smtpUser) {
-    mailOpts.bcc = settings.smtpUser;
+  // Automatically attach default proposal documents (portfolio and signature)
+  const defaults = getDefaultProposalAttachments();
+  if (defaults && defaults.length > 0) {
+    if (!mailOpts.attachments) mailOpts.attachments = [];
+    for (const dAtt of defaults) {
+      const exists = mailOpts.attachments.some(a => a.path === dAtt.path || a.filename === dAtt.filename || (a.cid && a.cid === dAtt.cid));
+      if (!exists) {
+        mailOpts.attachments.push(dAtt);
+      }
+    }
   }
 
   const isBrevo = String(settings.smtpHost || '').includes('brevo.com') || 
@@ -513,7 +527,8 @@ function getPublicAttachment(assetPath, filename, extra = {}) {
 }
 function getDefaultProposalAttachments() {
   return [
-    getPublicAttachment('/assets/portfolio.pdf', 'Oddinfotech Portfolio 2025.pdf')
+    getPublicAttachment('/assets/portfolio.pdf', 'Oddinfotech Portfolio 2025.pdf'),
+    getPublicAttachment('/assets/signature.gif', 'Email signature - 3.gif', { cid: 'signature_gif' })
   ].filter(Boolean);
 }
 function buildUploadedAttachments(attachments = []) {
@@ -756,9 +771,10 @@ async function validatePhone(phone, numverifyKey, fallbackCity, fallbackState) {
 }
 
 function getNameFromEmail(email) {
-  if (!email) return 'Sir/Madam';
+  if (!email || typeof email !== 'string') return 'Sir/Madam';
   const parts = email.split('@');
-  if (parts.length < 2) return 'Sir/Madam';
+  if (parts.length !== 2) return 'Sir/Madam';
+  
   let username = parts[0];
   
   // Replace symbols (dots, underscores, dashes) with spaces
@@ -778,13 +794,13 @@ function getNameFromEmail(email) {
 function getGreetingName(lead) {
   // If we have a specific lead name (not unknown), use it, otherwise extract from email ID
   let name = '';
-  if (lead.name && lead.name.toLowerCase() !== 'unknown' && lead.name.toLowerCase().trim() !== '') {
+  if (lead.name && lead.name.toLowerCase() !== 'unknown' && lead.name.trim() !== '') {
     name = lead.name;
   } else {
     name = getNameFromEmail(lead.email);
   }
   // Strip any markdown asterisks or hashes that Gemini might have added
-  return name.replace(/[*#`_~]/g, '').trim();
+  return name.replace(/[*#`_~]/g, '').trim() || 'Sir/Madam';
 }
 
 function getLeadServiceKey(lead) {
@@ -795,16 +811,19 @@ function getLeadServiceKey(lead) {
 
   // --- T-Shirt Embroidery (must check before generic embroidery) ---
   if (
-    // T-shirt + embroidery combo
-    /(t[\s-]*shirt|tee\s*shirt|polo\s*(?:t[\s-]*shirt|shirt)|round\s*neck|v[\s-]*neck|u[\s-]*neck|half\s*sleeve|full\s*sleeve).*(embroidery|embroidered|machine\s*embroidery|computerized\s*embroidery|logo\s*embroidery|uniform\s*embroidery|stitch(?:ing)?|thread\s*work)/i.test(haystack) ||
-    /(embroidery|embroidered|machine\s*embroidery|computerized\s*embroidery|logo\s*embroidery|stitch(?:ing)?).*(t[\s-]*shirt|tee\s*shirt|polo\s*(?:t[\s-]*shirt|shirt)|round\s*neck|v[\s-]*neck|u[\s-]*neck|half\s*sleeve|full\s*sleeve)/i.test(haystack) ||
-    // Garment/Uniform/Apparel embroidery
-    /(uniform|garment|apparel|jacket|hoodie|cap|hat|jersey|sports\s*wear|sportswear|corporate\s*wear|work\s*wear|workwear).*(embroidery|embroidered|stitch(?:ing)?)/i.test(haystack) ||
-    /(embroidery|embroidered|stitch(?:ing)?).*(uniform|garment|apparel|jacket|hoodie|cap|hat|jersey|sports\s*wear|sportswear)/i.test(haystack) ||
-    // Polo / collar shirt embroidery
-    /polo\s*(?:shirt|t-?shirt|tee).*(embroidery|embroidered|stitch)/i.test(haystack) ||
-    // Standalone "t shirt embroidery" or "tshirt embroidery"
-    /t[\s-]?shirt\s*embroidery|embroidery\s*t[\s-]?shirt/i.test(haystack)
+    !/(hand\s*embroidery|cotton\s*embroidery)/i.test(haystack) &&
+    (
+      // T-shirt + embroidery combo
+      /(t[\s-]*shirt|tee\s*shirt|polo\s*(?:t[\s-]*shirt|shirt)|round\s*neck|v[\s-]*neck|u[\s-]*neck|half\s*sleeve|full\s*sleeve).*(embroidery|embroidered|machine\s*embroidery|computerized\s*embroidery|logo\s*embroidery|uniform\s*embroidery|stitch(?:ing)?|thread\s*work)/i.test(haystack) ||
+      /(embroidery|embroidered|machine\s*embroidery|computerized\s*embroidery|logo\s*embroidery|stitch(?:ing)?).*(t[\s-]*shirt|tee\s*shirt|polo\s*(?:t[\s-]*shirt|shirt)|round\s*neck|v[\s-]*neck|u[\s-]*neck|half\s*sleeve|full\s*sleeve)/i.test(haystack) ||
+      // Garment/Uniform/Apparel embroidery
+      /(uniform|garment|apparel|jacket|hoodie|cap|hat|jersey|sports\s*wear|sportswear|corporate\s*wear|work\s*wear|workwear).*(embroidery|embroidered|stitch(?:ing)?)/i.test(haystack) ||
+      /(embroidery|embroidered|stitch(?:ing)?).*(uniform|garment|apparel|jacket|hoodie|cap|hat|jersey|sports\s*wear|sportswear)/i.test(haystack) ||
+      // Polo / collar shirt embroidery
+      /polo\s*(?:shirt|t-?shirt|tee).*(embroidery|embroidered|stitch)/i.test(haystack) ||
+      // Standalone "t shirt embroidery" or "tshirt embroidery"
+      /t[\s-]?shirt\s*embroidery|embroidery\s*t[\s-]?shirt/i.test(haystack)
+    )
   ) return 'tshirtembroidery';
 
   // --- T-Shirt Printing (must check before generic printing) ---
@@ -849,17 +868,17 @@ function getLeadServiceKey(lead) {
 
 function getGraphicDesignServiceType(lead) {
   const haystack = `${lead.product || ''} ${lead.message || ''}`.toLowerCase();
-  if (/brochure\s*design(?:ing)?/i.test(haystack)) return 'brochure';
-  if (/(catalogue|catalog)\s*design(?:ing)?/i.test(haystack)) return 'catalogue';
-  if (/flyer\s*design(?:ing)?/i.test(haystack)) return 'flyer';
-  if (/banner\s*design(?:ing)?/i.test(haystack)) return 'banner';
-  if (/logo\s*design(?:ing)?/i.test(haystack)) return 'logo';
-  if (/(menu\s*card|menu)\s*design(?:ing)?/i.test(haystack)) return 'menu';
-  if (/(brand\s*identity|branding)\s*design(?:ing)?/i.test(haystack)) return 'brandIdentity';
-  if (/poster\s*design(?:ing)?/i.test(haystack)) return 'poster';
-  if (/(business\s*card|visiting\s*card)\s*design(?:ing)?/i.test(haystack)) return 'businessCard';
-  if (/(package|packaging|label|sticker)\s*design(?:ing)?/i.test(haystack)) return 'packaging';
-  if (/(social\s*media|letterhead|invitation)\s*design(?:ing)?/i.test(haystack)) return 'graphic';
+  if (/brochure/i.test(haystack)) return 'brochure';
+  if (/(catalogue|catalog)/i.test(haystack)) return 'catalogue';
+  if (/flyer/i.test(haystack)) return 'flyer';
+  if (/banner/i.test(haystack)) return 'banner';
+  if (/logo/i.test(haystack)) return 'logo';
+  if (/(menu\s*card|menu)/i.test(haystack)) return 'menu';
+  if (/(brand\s*identity|branding)/i.test(haystack)) return 'brandIdentity';
+  if (/poster/i.test(haystack)) return 'poster';
+  if (/(business\s*card|visiting\s*card)/i.test(haystack)) return 'businessCard';
+  if (/(package|packaging|label|sticker)/i.test(haystack)) return 'packaging';
+  if (/(social\s*media|letterhead|invitation)/i.test(haystack)) return 'graphic';
   return 'graphic';
 }
 
@@ -869,63 +888,62 @@ function getGraphicDesignEmailBody(lead) {
   const graphicTemplates = {
     brochure: {
       title: 'Brochure Design Services',
-      intro: `We understand that you are looking for ${productName}. Our brochure design service is focused on creating professional, informative, and visually appealing brochures that clearly present your company, products, services, and offers to your customers.`,
+      intro: `Our brochure design service is focused on creating professional, informative, and visually appealing brochures that clearly present your company, products, services, and offers to your customers.`,
       included: 'Company Brochure Design, Product Brochure Design, Corporate Profile Brochure, Tri-fold and Bi-fold Brochure Design, Sales Brochure Design, Print-ready and Digital PDF Brochure Design.'
     },
     catalogue: {
       title: 'Catalogue Design Services',
-      intro: `We understand that you are looking for ${productName}. Our catalogue design service helps you present your product range in a clean, organized, and attractive format so your customers can easily understand your offerings and make enquiries.`,
+      intro: `Our catalogue design service helps you present your product range in a clean, organized, and attractive format so your customers can easily understand your offerings and make enquiries.`,
       included: 'Product Catalogue Design, Corporate Catalogue Design, E-commerce Catalogue Layout, Price Catalogue Design, Print-ready Catalogue Design, Digital PDF Catalogue Design.'
     },
     flyer: {
       title: 'Flyer Design Services',
-      intro: `We understand that you are looking for ${productName}. Our flyer design service is ideal for promotions, events, product launches, offers, and local marketing campaigns where the design must quickly catch attention and communicate the message clearly.`,
+      intro: `Our flyer design service is ideal for promotions, events, product launches, offers, and local marketing campaigns where the design must quickly catch attention and communicate the message clearly.`,
       included: 'Promotional Flyer Design, Event Flyer Design, Product Flyer Design, Offer Flyer Design, Single-side and Double-side Flyer Design, Print-ready and Social Media Flyer Design.'
     },
     banner: {
       title: 'Banner Design Services',
-      intro: `We understand that you are looking for ${productName}. Our banner design service helps your brand stand out across digital and print platforms with clear messaging, strong visual hierarchy, and professional artwork.`,
+      intro: `Our banner design service helps your brand stand out across digital and print platforms with clear messaging, strong visual hierarchy, and professional artwork.`,
       included: 'Web Banner Design, Social Media Banner Design, Display Ad Banner Design, Flex Banner Design, Hoarding Banner Design, Roll-up Banner Design, Print-ready Banner Artwork.'
     },
     logo: {
       title: 'Logo Design Services',
-      intro: `We understand that you are looking for ${productName}. Our logo design service is focused on creating a unique, memorable, and professional brand mark that represents your business identity clearly across print, digital, packaging, and marketing materials.`,
+      intro: `Our logo design service is focused on creating a unique, memorable, and professional brand mark that represents your business identity clearly across print, digital, packaging, and marketing materials.`,
       included: 'Custom Logo Design, Brand Logo Concepts, Logo Redesign, Typography Logo, Icon-based Logo, Business Logo Design, Print-ready and Digital Logo Files.'
     },
     menu: {
       title: 'Menu Card Design Services',
-      intro: `We understand that you are looking for ${productName}. Our menu card design service helps restaurants, cafes, hotels, bakeries, and food businesses present their items in an attractive, easy-to-read, and brand-matching layout.`,
+      intro: `Our menu card design service helps restaurants, cafes, hotels, bakeries, and food businesses present their items in an attractive, easy-to-read, and brand-matching layout.`,
       included: 'Restaurant Menu Card Design, Cafe Menu Design, Food Menu Layout, Digital Menu Design, Takeaway Menu Design, Table Menu Design, Print-ready Menu Artwork.'
     },
     brandIdentity: {
       title: 'Brand Identity Design Services',
-      intro: `We understand that you are looking for ${productName}. Our brand identity design service helps you build a consistent and professional visual identity for your business across logo, colors, typography, stationery, marketing materials, and digital presence.`,
+      intro: `Our brand identity design service helps you build a consistent and professional visual identity for your business across logo, colors, typography, stationery, marketing materials, and digital presence.`,
       included: 'Logo Usage, Color Palette, Typography Selection, Brand Guidelines, Stationery Design, Social Media Brand Assets, Business Card and Letterhead Design.'
     },
     poster: {
       title: 'Poster Design Services',
-      intro: `We understand that you are looking for ${productName}. Our poster design service is created for promotions, events, announcements, product highlights, campaigns, and display requirements where the design should be attractive and message-driven.`,
+      intro: `Our poster design service is created for promotions, events, announcements, product highlights, campaigns, and display requirements where the design should be attractive and message-driven.`,
       included: 'Event Poster Design, Promotional Poster Design, Product Poster Design, Campaign Poster Design, Social Media Poster Design, Print-ready Poster Artwork.'
     },
     businessCard: {
       title: 'Business Card Design Services',
-      intro: `We understand that you are looking for ${productName}. Our business card design service helps you create a professional first impression with a clean, memorable, and brand-aligned visiting card layout.`,
+      intro: `Our business card design service helps you create a professional first impression with a clean, memorable, and brand-aligned visiting card layout.`,
       included: 'Business Card Design, Visiting Card Design, Corporate Card Design, Premium Card Layout, Front and Back Card Design, Print-ready Business Card Artwork.'
     },
     packaging: {
       title: 'Package Design Services',
-      intro: `We understand that you are looking for ${productName}. Our package design service helps your product look professional, attractive, and market-ready with packaging artwork that reflects your brand and communicates product details clearly.`,
+      intro: `Our package design service helps your product look professional, attractive, and market-ready with packaging artwork that reflects your brand and communicates product details clearly.`,
       included: 'Product Package Design, Label Design, Box Packaging Design, Pouch and Wrapper Design, Sticker Design, Retail Packaging Artwork, Print-ready Packaging Files.'
     },
     graphic: {
       title: 'Graphic Design Services',
-      intro: `We understand that you are looking for ${productName}. Our graphic design service is focused on creating professional, high-quality visuals that strengthen your brand identity and communicate your message clearly across print and digital platforms.`,
+      intro: `Our graphic design service is focused on creating professional, high-quality visuals that strengthen your brand identity and communicate your message clearly across print and digital platforms.`,
       included: 'Brochure Designing services, Catalogue Designing services, Flyer Designing services, Banner Designing services, Logo Designing services, Menu card Designing services, Brand Identity Designing services, Poster Designing services, Business card Designing services, and Package Designing services.'
     }
   };
   const template = graphicTemplates[serviceType] || graphicTemplates.graphic;
-
-  return `This is Sankar from ODD INFOTECH, and I'm pleased to introduce our professional ${template.title} crafted to match your requirement.
+  return `This is Sankar from ODD INFOTECH, and I am pleased to introduce our professional ${template.title} crafted to match your requirement.
 
 ${template.intro}
 
@@ -953,7 +971,7 @@ Looking forward to the possibility of a successful collaboration and a prosperou
 
 function getServiceEmailBody(lead) {
   const templates = {
-    embroidery: `This is Sankar on behalf of ODD INFOTECH. Thank you for your inquiry regarding "${lead.product || 'Embroidery Services'}". Our embroidery digitizing services gives you access to a plethora of benefits along with the high-quality artwork that speaks for itself.  We offer aesthetic and flawless custom digitizing services and have the most talented resources at hand who ensure that you don't get anything less than perfection. We use the latest and greatest digitizing software to help produce high-quality products that will help bring your brand out into the spotlight. Some of the key factors for you to choose ODD INFOTECH as your custom embroidery digitizing company are listed here:
+    embroidery: `Our embroidery digitizing services gives you access to a plethora of benefits along with the high-quality artwork that speaks for itself.  We offer aesthetic and flawless custom digitizing services and have the most talented resources at hand who ensure that you don't get anything less than perfection. We use the latest and greatest digitizing software to help produce high-quality products that will help bring your brand out into the spotlight. Some of the key factors for you to choose ODD INFOTECH as your custom embroidery digitizing company are listed here:
 
 * Flexible Pricing Plans  (Quote and Portfolio attached for your reference)
 * Information Security (Data is handled with utmost priority and confidentially)
@@ -971,7 +989,7 @@ Kindly find the attached quote and portfolio for your reference. Also kindly adv
 
 Looking forward to a very successful business relationship in the coming years.`,
 
-    tshirtprinting: `This is Sankar from ODD INFOTECH. Thank you for your inquiry regarding "${lead.product || 'T Shirt Printing Services'}". I am pleased to introduce our professional T Shirt Printing Services designed for corporate branding, promotional campaigns, events, and custom apparel requirements.
+    tshirtprinting: `I am pleased to introduce our professional T Shirt Printing Services designed for corporate branding, promotional campaigns, events, and custom apparel requirements.
 
 At ODD INFOTECH, we specialize in high-quality custom T-shirt printing solutions that help businesses create strong brand visibility. Our services include logo printing, text printing, and custom graphic printing on all types of T-shirts such as round neck, V-neck, U-neck, and polo T-shirts.
 
@@ -979,10 +997,7 @@ We use advanced printing technologies like DTF printing, screen printing, sublim
 
 Why Choose ODD INFOTECH:
 
-* Flexible Pricing Plans
-
-Pricing depends on design, quantity, and printing method. We offer customized and affordable quotations.
-
+* Flexible Pricing Plans: Pricing depends on design, quantity, and printing method. We offer customized and affordable quotations.
 * Our T Shirt Printing Services Include:
 Custom Logo T Shirt Printing
 Corporate T Shirt Printing
@@ -1001,13 +1016,8 @@ Bulk Order Capability
 Fast Turnaround Time
 Consistent Quality Assurance
 24/7 Customer Support
-* Information Security
-
-We ensure complete confidentiality of client designs and business data.
-
-* Single Point of Contact (SPOC)
-
-Dedicated coordinator for smooth communication and project handling.
+* Information Security: We ensure complete confidentiality of client designs and business data.
+* Single Point of Contact (SPOC): Dedicated coordinator for smooth communication and project handling.
 
 If you are looking for a reliable T Shirt Printing Service provider, ODD INFOTECH is here to support your branding and business needs.
 
@@ -1017,7 +1027,7 @@ Kindly find our company profile and service details attached for your reference.
 
 We look forward to working with you.`,
 
-    tshirtembroidery: `This is Sankar from ODD INFOTECH. Thank you for your inquiry regarding "${lead.product || 'T Shirt Embroidery Services'}". I am pleased to introduce our professional T Shirt Embroidery Services designed to deliver premium quality branding solutions for corporate, promotional, and industrial requirements.
+    tshirtembroidery: `I am pleased to introduce our professional T Shirt Embroidery Services designed to deliver premium quality branding solutions for corporate, promotional, and industrial requirements.
 
 At ODD INFOTECH, we specialize in high-quality computerized machine embroidery on all types of T-shirts including round neck, V-neck, U-neck, and polo T-shirts. Our embroidery services ensure clean stitching, precise detailing, and a long-lasting premium finish that enhances your brand identity.
 
@@ -1025,10 +1035,7 @@ We provide customized embroidery solutions for company logos, employee uniforms,
 
 Why Choose ODD INFOTECH for T Shirt Embroidery Services:
 
-* Flexible Pricing Plans
-
-Pricing depends on design size, stitch count, and order quantity. We offer affordable and customized quotations based on your requirements.
-
+* Flexible Pricing Plans: Pricing depends on design size, stitch count, and order quantity. We offer affordable and customized quotations based on your requirements.
 * Our T Shirt Embroidery Services Include:
 Corporate Logo Embroidery
 Custom T Shirt Embroidery
@@ -1040,33 +1047,13 @@ Sports Team Embroidery
 Promotional Apparel Embroidery
 Bulk Order Embroidery Services
 Custom Artwork Stitching
-* Advanced Embroidery Technology
-
-We use modern computerized embroidery machines along with professional digitizing techniques to ensure high precision, durability, and premium finishing.
-
-* Information Security
-
-We maintain strict confidentiality and ensure complete protection of your designs and business information.
-
-* Single Point of Contact (SPOC)
-
-A dedicated executive will handle your project for smooth communication and timely updates.
-
-* Experienced Embroidery Team
-
-Our skilled professionals ensure accurate stitching, proper thread selection, and consistent quality across all garments.
-
-* Scalable Services
-
-We efficiently handle both small orders and large-scale bulk embroidery requirements.
-
-* Fast Turnaround Time
-
-We ensure timely delivery without compromising on quality standards.
-
-* 24/7 Support
-
-Our team is available via email, phone, and chat for continuous assistance.
+* Advanced Embroidery Technology: We use modern computerized embroidery machines along with professional digitizing techniques to ensure high precision, durability, and premium finishing.
+* Information Security: We maintain strict confidentiality and ensure complete protection of your designs and business information.
+* Single Point of Contact (SPOC): A dedicated executive will handle your project for smooth communication and timely updates.
+* Experienced Embroidery Team: Our skilled professionals ensure accurate stitching, proper thread selection, and consistent quality across all garments.
+* Scalable Services: We efficiently handle both small orders and large-scale bulk embroidery requirements.
+* Fast Turnaround Time: We ensure timely delivery without compromising on quality standards.
+* 24/7 Support: Our team is available via email, phone, and chat for continuous assistance.
 
 If you are looking for a reliable and professional T Shirt Embroidery Service provider, ODD INFOTECH is here to support your branding and uniform needs.
 
@@ -1076,7 +1063,7 @@ Kindly find our company profile and service details attached for your reference.
 
 We look forward to the opportunity of working with you and building a long-term business relationship.`,
 
-    livechat: `This is Sankar from ODD INFOTECH, and I'm thrilled to introduce our exceptional Client Customer Service, designed to elevate your customer interactions to new heights.
+    livechat: `I'm thrilled to introduce our exceptional Client Customer Service, designed to elevate your customer interactions to new heights.
 
 Our Live Chat Support goes beyond the ordinary, offering not only responsiveness but also a level of excellence that sets your customer service apart. At ODD INFOTECH, we take pride in our commitment to delivering outstanding customer experiences. Our skilled professionals utilize advanced chat support tools to ensure seamless and effective communication with your clients. Here are some compelling reasons to consider ODD INFOTECH for your Live Chat Support needs:
 
@@ -1095,7 +1082,7 @@ We eagerly await your feedback to better understand your specific needs and ensu
 
 Thank you for considering ODD INFOTECH. We look forward to the prospect of a successful collaboration.`,
 
-    imageediting: `This is Sankar from ODD INFOTECH, and I'm delighted to introduce our professional Image Editing Services designed to enhance the visual appeal of your products and strengthen your brand presence across digital and print platforms.
+    imageediting: `I'm delighted to introduce our professional Image Editing Services designed to enhance the visual appeal of your products and strengthen your brand presence across digital and print platforms.
 
 At ODD INFOTECH, we specialize in delivering high-quality image editing solutions for jewellery, product, and e-commerce businesses. Our experienced team leverages advanced tools such as Adobe Photoshop and Adobe Lightroom to ensure every image meets the highest standards of quality, accuracy, and visual appeal. We focus on precision, consistency, and attention to detail to help your products stand out in a competitive marketplace.
 
@@ -1133,7 +1120,7 @@ Kindly find our company profile, portfolio, and quotation attached for your refe
 
 We look forward to the opportunity of working with you and building a long-term business relationship.`,
 
-    emailmarketing: `This is Sankar from ODD INFOTECH, and I'm excited to introduce our professional Email Marketing Services designed to help businesses engage customers, generate quality leads, increase conversions, and build long-term customer relationships.
+    emailmarketing: `I'm excited to introduce our professional Email Marketing Services designed to help businesses engage customers, generate quality leads, increase conversions, and build long-term customer relationships.
 
 At ODD INFOTECH, we specialize in creating and managing result-oriented email marketing campaigns tailored to your business objectives. Our experienced team develops compelling email content, attractive designs, targeted campaigns, and automated workflows that help you reach the right audience at the right time. We focus on maximizing engagement, improving customer retention, and driving measurable business growth.
 
@@ -1167,7 +1154,7 @@ Kindly find our company profile, portfolio, and quotation attached for your refe
 
 We look forward to the opportunity of working with you and building a long-term business relationship.`,
 
-    vector: `This is Sankar from ODD INFOTECH, and I am pleased to introduce our professional Vector Artwork and Vector Redraw Services designed to deliver clean, scalable, and print-ready vector graphics for businesses across various industries.
+    vector: `I am pleased to introduce our professional Vector Artwork and Vector Redraw Services designed to deliver clean, scalable, and print-ready vector graphics for businesses across various industries.
 
 At ODD INFOTECH, we specialize in manual vector conversion and vector redraw services using the Pen Tool, ensuring precise and high-quality results. Unlike automated image tracing methods, our skilled artists carefully recreate artwork by hand, preserving every detail, curve, and shape for superior accuracy and professional output.
 
@@ -1213,7 +1200,7 @@ Kindly find our company profile, portfolio, and quotation attached for your refe
 
 We look forward to the opportunity of working with you and building a long-term business relationship.`,
 
-    aiml: `This is Sankar from ODD INFOTECH, and I am pleased to introduce our cutting-edge Artificial Intelligence (AI) and Machine Learning (ML) services designed to help businesses automate processes, improve decision-making, enhance customer experiences, and drive innovation.
+    aiml: `I am pleased to introduce our cutting-edge Artificial Intelligence (AI) and Machine Learning (ML) services designed to help businesses automate processes, improve decision-making, enhance customer experiences, and drive innovation.
 
 At ODD INFOTECH, we provide customized AI and ML solutions that help organizations unlock the power of their data and gain a competitive advantage. Our experienced team of AI engineers, data scientists, and developers builds intelligent solutions tailored to your specific business requirements, ensuring measurable results and long-term value.
 
@@ -1250,7 +1237,7 @@ Kindly find our company profile, portfolio, and quotation attached for your refe
 
 We look forward to the opportunity of working with you and building a successful long-term business relationship.`,
 
-    graphic: `This is Sankar from ODD INFOTECH, and I'm excited to introduce our top-notch graphic design services crafted to enhance your brand's visual identity. Our graphic design services offer a myriad of benefits, coupled with high-quality artwork that speaks volumes. At ODD INFOTECH, we take pride in delivering flawless custom design solutions, executed by our talented team to ensure nothing less than perfection. Utilizing the latest design software, we aim to produce high-quality visuals that will truly set your brand in the spotlight. Here are some key reasons to choose ODD INFOTECH as your preferred graphic design company:
+    graphic: `I'm excited to introduce our top-notch graphic design services crafted to enhance your brand's visual identity. Our graphic design services offer a myriad of benefits, coupled with high-quality artwork that speaks volumes. At ODD INFOTECH, we take pride in delivering flawless custom design solutions, executed by our talented team to ensure nothing less than perfection. Utilizing the latest design software, we aim to produce high-quality visuals that will truly set your brand in the spotlight. Here are some key reasons to choose ODD INFOTECH as your preferred graphic design company:
 
 * Flexible Pricing Plans: The price depends on the Services. Once we know about your project, then we will give you the price. We will provide you with an affordable price.
 * The services included in graphic design are: Brochure Designing services, Catalogue Designing services, Flyer Designing services, Banner Designing services, Logo Designing services, Menu card Designing services, Brand Identity Designing services, Poster Designing services, Business card Designing services, and Package Designing services.
@@ -1269,7 +1256,7 @@ Kindly find the attached quote and portfolio for your reference. Also kindly adv
 
 Looking forward to the possibility of a successful collaboration and a prosperous business relationship in the coming years.`,
 
-    dataentry: `This is Sankar from ODD INFOTECH, and I am pleased to introduce our professional Data Entry Services designed to help businesses manage, organize, and maintain their data with accuracy, efficiency, and confidentiality.
+    dataentry: `I am pleased to introduce our professional Data Entry Services designed to help businesses manage, organize, and maintain their data with accuracy, efficiency, and confidentiality.
 
 At ODD INFOTECH, we provide high-quality data entry solutions that support businesses in improving productivity, reducing workload, and ensuring error-free data management. Our skilled team is trained to handle large volumes of data with speed and precision while maintaining strict quality standards.
 
@@ -1277,10 +1264,7 @@ We ensure that your business data is accurately captured, properly structured, a
 
 Why Choose ODD INFOTECH for Data Entry Services:
 
-* Flexible Pricing Plans
-
-Pricing depends on project volume and complexity. We offer customized and affordable pricing after understanding your requirements.
-
+* Flexible Pricing Plans: Pricing depends on project volume and complexity. We offer customized and affordable pricing after understanding your requirements.
 * Our Data Entry Services Include:
 Online Data Entry Services
 Offline Data Entry Services
@@ -1294,29 +1278,12 @@ Form Filling Services
 Copy Paste Data Entry Work
 Typing & Document Entry Services
 Web Research & Data Extraction
-* Accuracy & Quality Assurance
-
-We ensure 99%+ accuracy with proper quality checks at every stage of the project.
-
-* Data Confidentiality
-
-We maintain strict confidentiality and security of all client data and information.
-
-* Skilled Data Entry Professionals
-
-Our experienced team ensures fast turnaround time with error-free output.
-
-* Scalable Services
-
-We can handle both small and large-scale data entry projects efficiently.
-
-* Fast Turnaround Time
-
-We deliver projects within committed timelines without compromising quality.
-
-* 24/7 Support
-
-Our team is available via email, phone, and chat for continuous support.
+* Accuracy & Quality Assurance: We ensure 99%+ accuracy with proper quality checks at every stage of the project.
+* Data Confidentiality: We maintain strict confidentiality and security of all client data and information.
+* Skilled Data Entry Professionals: Our experienced team ensures fast turnaround time with error-free output.
+* Scalable Services: We can handle both small and large-scale data entry projects efficiently.
+* Fast Turnaround Time: We deliver projects within committed timelines without compromising quality.
+* 24/7 Support: Our team is available via email, phone, and chat for continuous support.
 
 If you are looking for a reliable and professional Data Entry Service provider, ODD INFOTECH is here to support your business operations with accuracy and efficiency.
 
@@ -1328,17 +1295,40 @@ We look forward to the opportunity of working with you and building a long-term 
   };
 
   const serviceKey = getLeadServiceKey(lead);
+  let bodyStr;
   // For graphic design, use the more specific sub-service template
   if (serviceKey === 'graphic') {
-    return getGraphicDesignEmailBody(lead);
+    bodyStr = getGraphicDesignEmailBody(lead);
+  } else {
+    bodyStr = templates[serviceKey] || getGraphicDesignEmailBody(lead);
   }
-  return templates[serviceKey] || getGraphicDesignEmailBody(lead);
+  
+  if (bodyStr.startsWith('I ')) {
+    return 'This is Sankar from ODD INFOTECH, and ' + bodyStr;
+  } else if (bodyStr.startsWith('Our ')) {
+    return 'This is Sankar from ODD INFOTECH, and ' + bodyStr.charAt(0).toLowerCase() + bodyStr.slice(1);
+  }
+  return 'This is Sankar from ODD INFOTECH. ' + bodyStr;
 }
 
 function getGreetingEmailText(lead) {
   const name = getGreetingName(lead);
+  const serviceKey = getLeadServiceKey(lead);
+  const serviceSubjectMap = {
+    tshirtembroidery: 'T Shirt Embroidery Services',
+    tshirtprinting: 'T Shirt Printing Services',
+    embroidery: 'Embroidery Digitizing Services',
+    dataentry: 'Data Entry Services',
+    livechat: 'Live Chat Support Services',
+    imageediting: 'Image Editing Services',
+    emailmarketing: 'Email Marketing Services',
+    vector: 'Vector Artwork Services',
+    aiml: 'AI & Machine Learning Services',
+    graphic: 'Graphic Design Services'
+  };
 
   return `Dear ${name},
+
 Good day!
 
 ${getServiceEmailBody(lead)}
@@ -1387,7 +1377,7 @@ function getGreetingEmailHtml(lead) {
     aiml: 'AI & Machine Learning Services',
     graphic: 'Graphic Design Services'
   };
-  const leadService = (lead.product && lead.product.trim() !== '') ? lead.product.trim() : (serviceSubjectMap[serviceKey] || 'Graphic Design Services');
+  const standardService = serviceSubjectMap[serviceKey] || 'Graphic Design Services';
   const bodyHtml = textToEmailHtml(getServiceEmailBody(lead));
 
   return `<!DOCTYPE html>
@@ -1395,12 +1385,11 @@ function getGreetingEmailHtml(lead) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proposal for ${escapeHtml(leadService)}</title>
+  <title>Proposal for ODD INFOTECH ${escapeHtml(standardService)}</title>
 </head>
 <body style="margin: 0; padding: 0; background: #ffffff; font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.55;">
   <div style="font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.55; font-size: 14px;">
-    <p style="margin: 0 0 8px 0;">Dear <span style="font-weight: normal; font-size: inherit; font-family: inherit;">${escapeHtml(name)}</span>,</p>
-    <p style="margin: 0 0 12px 0;">Good day!</p>
+    <p style="margin: 0 0 12px 0;">Dear <strong>${escapeHtml(name)}</strong>,<br><br>Good day!</p>
     ${bodyHtml}
     <p style="margin: 0 0 12px 0;">
       --<br>
@@ -1410,13 +1399,17 @@ function getGreetingEmailHtml(lead) {
       Contact : +91 98941 89152<br>
       Website: <a href="https://www.oddinfotech.com" style="color: #1155cc;">www.oddinfotech.com</a>
     </p>
-    <img src="https://indiamart-crm.onrender.com/assets/signature.gif" alt="Sankar G - MD" style="display: block; width: 600px; max-width: 100%; height: auto; border: 0; outline: none; text-decoration: none;">
+    <img src="cid:signature_gif" alt="Sankar G - MD" style="display: block; width: 600px; max-width: 100%; height: auto; border: 0; outline: none; text-decoration: none;">
   </div>
 </body>
 </html>`;
 }
 
 async function triggerAutoResponse(lead, settings, data) {
+  const emailKey = normalizeEmail(lead.email);
+  const serviceKey = getLeadServiceKey(lead);
+  const sendKey = emailKey;
+
   const freshData = await loadData();
   if (!freshData.emails) freshData.emails = [];
   if (hasAutoResponseForLead(freshData, lead)) {
@@ -1424,132 +1417,147 @@ async function triggerAutoResponse(lead, settings, data) {
     return { skipped: true, reason: 'already_sent' };
   }
 
-  const emailValidation = await validateEmail(lead.email);
-  if (!emailValidation.valid) {
-    const leadIndex = freshData.leads.findIndex(l => l.id === lead.id || normalizeEmail(l.email) === normalizeEmail(lead.email));
-    if (leadIndex >= 0) {
-      freshData.leads[leadIndex].emailValid = false;
-      freshData.leads[leadIndex].emailReason = emailValidation.reason;
-      freshData.leads[leadIndex].updatedAt = new Date().toISOString();
-      await saveData(freshData);
-    }
-    console.log(`[AutoResponse] Skipped for ${lead.name} - invalid email: ${emailValidation.reason}`);
-    return { skipped: true, reason: 'invalid_email', emailReason: emailValidation.reason };
+  if (sendingEmails.has(sendKey)) {
+    console.log(`[AutoResponse] Skipped for ${lead.name} - autoresponse already sending right now.`);
+    return { skipped: true, reason: 'already_sending' };
   }
 
-  const serviceKey = getLeadServiceKey(lead);
-  // Use service-specific subject titles for non-graphic services
-  const serviceSubjectMap = {
-    tshirtembroidery: 'T Shirt Embroidery Services',
-    tshirtprinting: 'T Shirt Printing Services',
-    embroidery: 'Embroidery Digitizing Services',
-    dataentry: 'Data Entry Services',
-    livechat: 'Live Chat Support Services',
-    imageediting: 'Image Editing Services',
-    emailmarketing: 'Email Marketing Services',
-    vector: 'Vector Artwork Services',
-    aiml: 'AI & Machine Learning Services',
-    graphic: 'Graphic Design Services'
-  };
-  const leadService = (lead.product && lead.product.trim() !== '') ? lead.product.trim() : (serviceSubjectMap[serviceKey] || 'Graphic Design Services');
-  const subject = `Proposal for ${leadService}`;
-  
-  const bodyHtml = getGreetingEmailHtml(lead);
-  const bodyText = getGreetingEmailText(lead);
+  sendingEmails.add(sendKey);
 
-  // Instead of relying on the passed 'data' object which might be stale in background,
-  // we will load a fresh copy to save the email record at the end.
-  const emailRecord = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-    leadId: lead.id,
-    to: lead.email,
-    subject,
-    body: bodyText,
-    direction: 'sent',
-    sentAt: new Date().toISOString(),
-    serviceKey,
-    attachments: [
-      { filename: 'Oddinfotech Portfolio 2025.pdf', path: '/assets/portfolio.pdf' },
-      { filename: 'Email signature - 3.gif', path: '/assets/signature.gif' }
-    ],
-    autoResponse: true,
-    leadSnapshot: {
-      id: lead.id,
-      indiamartId: lead.indiamartId || '',
-      source: lead.source || '',
-      name: lead.name || '',
-      company: lead.company || '',
-      email: lead.email || '',
-      phone: lead.phone || '',
-      city: lead.city || '',
-      state: lead.state || '',
-      product: lead.product || '',
-      message: lead.message || '',
-      status: lead.status || 'New',
-      clientStatus: lead.clientStatus || 'Prospect',
-      score: lead.score ?? null,
-      aiSummary: lead.aiSummary || null,
-      emailValid: lead.emailValid ?? null,
-      emailReason: lead.emailReason || '',
-      phoneValid: lead.phoneValid ?? null,
-      phoneLocation: lead.phoneLocation || '',
-      phoneCarrier: lead.phoneCarrier || '',
-      phoneLineType: lead.phoneLineType || '',
-      phoneStatus: lead.phoneStatus || '',
-      phoneOwner: lead.phoneOwner || null,
-      createdAt: lead.createdAt || ''
-    }
-  };
-  
-  if (isSmtpConfigured(settings)) {
-    try {
-      const mailOpts = {
-        from: settings.smtpUser,
-        to: lead.email,
-        subject,
-        text: bodyText,
-        html: bodyHtml,
-        attachments: getDefaultProposalAttachments()
-      };
-      await sendEmailThroughProvider(settings, mailOpts);
-      console.log(`[AutoResponse] Sent to ${lead.email} successfully with attachments.`);
-      emailRecord.status = 'sent';
-
-      // ✅ Push live activity event
-      pushActivity('email_sent',
-        `✉️ Mail Sent — ${lead.name || lead.email}`,
-        `Service: ${serviceKey} | To: ${lead.email}`,
-        { leadId: lead.id, email: lead.email, service: serviceKey }
-      );
-
-      // ✅ Update lead record to reflect mail sent
-      const leadIdx = freshData.leads.findIndex(l => l.id === lead.id || normalizeEmail(l.email) === normalizeEmail(lead.email));
-      if (leadIdx >= 0) {
-        freshData.leads[leadIdx].lastEmailSentAt = new Date().toISOString();
-        freshData.leads[leadIdx].emailSent = true;
-        freshData.leads[leadIdx].updatedAt = new Date().toISOString();
-        if (!freshData.leads[leadIdx].status || freshData.leads[leadIdx].status === 'New') {
-          freshData.leads[leadIdx].status = 'Contacted';
-        }
+  try {
+    const emailValidation = await validateEmail(lead.email);
+    if (!emailValidation.valid) {
+      const leadIndex = freshData.leads.findIndex(l => l.id === lead.id || normalizeEmail(l.email) === normalizeEmail(lead.email));
+      if (leadIndex >= 0) {
+        freshData.leads[leadIndex].emailValid = false;
+        freshData.leads[leadIndex].emailReason = emailValidation.reason;
+        freshData.leads[leadIndex].updatedAt = new Date().toISOString();
+        await saveData(freshData);
       }
-    } catch (e) {
-      console.error(`[AutoResponse] Error sending to ${lead.email}:`, e.message);
-      emailRecord.status = 'failed';
-      emailRecord.error = e.message;
-      pushActivity('email_failed',
-        `❌ Mail Failed — ${lead.name || lead.email}`,
-        `Error: ${e.message}`,
-        { leadId: lead.id, email: lead.email }
-      );
+      console.log(`[AutoResponse] Skipped for ${lead.name} - invalid email: ${emailValidation.reason}`);
+      return { skipped: true, reason: 'invalid_email', emailReason: emailValidation.reason };
     }
-  } else {
-    console.log(`[AutoResponse] SMTP not configured. Logged autoresponse with attachments to ${lead.email}.`);
-    emailRecord.status = 'logged';
-    emailRecord.note = 'SMTP not configured — logged only';
-  }
 
-  freshData.emails.push(emailRecord);
-  await saveData(freshData);
+    const serviceKey = getLeadServiceKey(lead);
+    // Use service-specific subject titles for non-graphic services
+    const serviceSubjectMap = {
+      tshirtembroidery: 'T Shirt Embroidery Services',
+      tshirtprinting: 'T Shirt Printing Services',
+      embroidery: 'Embroidery Digitizing Services',
+      dataentry: 'Data Entry Services',
+      livechat: 'Live Chat Support Services',
+      imageediting: 'Image Editing Services',
+      emailmarketing: 'Email Marketing Services',
+      vector: 'Vector Artwork Services',
+      aiml: 'AI & Machine Learning Services',
+      graphic: 'Graphic Design Services'
+    };
+    const standardService = serviceSubjectMap[serviceKey] || 'Graphic Design Services';
+    const subject = `Proposal for ODD INFOTECH ${standardService}`;
+    
+    const bodyHtml = getGreetingEmailHtml(lead);
+    const bodyText = getGreetingEmailText(lead);
+
+    // Instead of relying on the passed 'data' object which might be stale in background,
+    // we will load a fresh copy to save the email record at the end.
+    const emailRecord = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      leadId: lead.id,
+      to: lead.email,
+      subject,
+      body: bodyText,
+      direction: 'sent',
+      sentAt: new Date().toISOString(),
+      serviceKey,
+      attachments: [
+        { filename: 'Oddinfotech Portfolio 2025.pdf', path: '/assets/portfolio.pdf' },
+        { filename: 'Email signature - 3.gif', path: '/assets/signature.gif', cid: 'signature_gif' }
+      ],
+      autoResponse: true,
+      leadSnapshot: {
+        id: lead.id,
+        indiamartId: lead.indiamartId || '',
+        source: lead.source || '',
+        name: lead.name || '',
+        company: lead.company || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        city: lead.city || '',
+        state: lead.state || '',
+        product: lead.product || '',
+        message: lead.message || '',
+        status: lead.status || 'New',
+        clientStatus: lead.clientStatus || 'Prospect',
+        score: lead.score ?? null,
+        aiSummary: lead.aiSummary || null,
+        emailValid: lead.emailValid ?? null,
+        emailReason: lead.emailReason || '',
+        phoneValid: lead.phoneValid ?? null,
+        phoneLocation: lead.phoneLocation || '',
+        phoneCarrier: lead.phoneCarrier || '',
+        phoneLineType: lead.phoneLineType || '',
+        phoneStatus: lead.phoneStatus || '',
+        phoneOwner: lead.phoneOwner || null,
+        createdAt: lead.createdAt || ''
+      }
+    };
+    
+    if (isSmtpConfigured(settings)) {
+      try {
+        const mailOpts = {
+          from: settings.smtpUser,
+          to: lead.email,
+          subject,
+          text: bodyText,
+          html: bodyHtml,
+          attachments: getDefaultProposalAttachments()
+        };
+        await sendEmailThroughProvider(settings, mailOpts);
+        console.log(`[AutoResponse] Sent to ${lead.email} successfully with attachments.`);
+        emailRecord.status = 'sent';
+
+        // ✅ Push live activity event
+        pushActivity('email_sent',
+          `✉️ Mail Sent — ${lead.name || lead.email}`,
+          `Service: ${serviceKey} | To: ${lead.email}`,
+          { leadId: lead.id, email: lead.email, service: serviceKey }
+        );
+
+        // ✅ Update lead record to reflect mail sent
+        const leadIdx = freshData.leads.findIndex(l => l.id === lead.id || normalizeEmail(l.email) === normalizeEmail(lead.email));
+        if (leadIdx >= 0) {
+          if (freshData.leads[leadIdx].clientStatus !== 'Replied via Email' && freshData.leads[leadIdx].clientStatus !== 'Replied in IndiaMART') {
+            if (freshData.leads[leadIdx].clientStatus !== 'Emailed') {
+              if (!freshData.leads[leadIdx].statusHistory) freshData.leads[leadIdx].statusHistory = [freshData.leads[leadIdx].clientStatus || 'New'];
+              if (!freshData.leads[leadIdx].statusHistory.includes('Emailed')) freshData.leads[leadIdx].statusHistory.push('Emailed');
+              freshData.leads[leadIdx].clientStatus = 'Emailed';
+            }
+          }
+          freshData.leads[leadIdx].lastEmailSentAt = new Date().toISOString();
+          freshData.leads[leadIdx].emailSent = true;
+          freshData.leads[leadIdx].updatedAt = new Date().toISOString();
+        }
+      } catch (e) {
+        console.error(`[AutoResponse] Error sending to ${lead.email}:`, e.message);
+        emailRecord.status = 'failed';
+        emailRecord.error = e.message;
+        pushActivity('email_failed',
+          `❌ Mail Failed — ${lead.name || lead.email}`,
+          `Error: ${e.message}`,
+          { leadId: lead.id, email: lead.email }
+        );
+      }
+    } else {
+      console.log(`[AutoResponse] SMTP not configured. Logged autoresponse with attachments to ${lead.email}.`);
+      emailRecord.status = 'logged';
+      emailRecord.note = 'SMTP not configured — logged only';
+    }
+
+    freshData.emails.push(emailRecord);
+    await saveData(freshData);
+  } finally {
+    sendingEmails.delete(sendKey);
+  }
 }
 
 async function syncImapReplies() {
@@ -1593,6 +1601,9 @@ async function syncImapReplies() {
   let connection = null;
   try {
     connection = await imaps.connect(config);
+    connection.on('error', err => {
+      console.error('[IMAP] Background connection error:', err.message);
+    });
     await connection.openBox('INBOX');
 
     const data = await loadData();
@@ -1824,8 +1835,7 @@ app.get('/api/indiamart/leads', async (req, res) => {
       const leadPhone = l.SENDER_MOBILE || l.sender_mobile || l.SENDER_PHONE || l.sender_phone || '';
       if (imId) fetchedIndiaMartIds.add(imId);
       const duplicateByIndiaMartId = imId && existing.has(imId);
-      const duplicateByFallback = !imId && hasExistingLead(data, { email: leadEmail, phone: leadPhone });
-      if (duplicateByIndiaMartId || duplicateByFallback) continue;
+      if (duplicateByIndiaMartId) continue;
 
       const emailVal = await validateEmail(leadEmail);
       const phoneVal = await validatePhone(
@@ -1835,10 +1845,23 @@ app.get('/api/indiamart/leads', async (req, res) => {
         l.SENDER_STATE || l.sender_state || ''
       );
 
+      const rawMessage = l.QUERY_MESSAGE || l.query_message || '';
+      
+      let qType = l.QUERY_TYPE || l.query_type || '';
+      if (!qType) {
+        if (rawMessage.toLowerCase().includes('buyer searched for') || rawMessage.toLowerCase().includes('requirement for')) {
+          qType = 'BL';
+        } else {
+          qType = 'W';
+        }
+      }
+      if (qType === 'B') qType = 'BL';
+
       const lead = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         indiamartId: imId,
         source: 'IndiaMART',
+        queryType: qType,
         name: l.SENDER_NAME || l.sender_name || 'Unknown',
         company: l.SENDER_COMPANY || l.sender_company || '',
         email: leadEmail,
@@ -1846,7 +1869,7 @@ app.get('/api/indiamart/leads', async (req, res) => {
         city: l.SENDER_CITY || l.sender_city || '',
         state: l.SENDER_STATE || l.sender_state || '',
         product: l.QUERY_PRODUCT_NAME || l.query_product_name || '',
-        message: l.QUERY_MESSAGE || l.query_message || '',
+        message: rawMessage,
         status: 'New',
         clientStatus: 'New',
         score: null,
@@ -1863,6 +1886,11 @@ app.get('/api/indiamart/leads', async (req, res) => {
         updatedAt: new Date().toISOString()
       };
 
+      const alreadyEmailed = hasAutoResponseForLead(data, lead);
+      if (alreadyEmailed) {
+        lead.clientStatus = 'Auto-Skipped';
+      }
+
       data.leads.unshift(lead);
       if (imId) existing.add(imId);
       added++;
@@ -1876,10 +1904,14 @@ app.get('/api/indiamart/leads', async (req, res) => {
 
       // Trigger Auto-responder if email is valid. Phone check relaxed — IndiaMART leads already filtered, format check enough.
       const phoneOk = true; // Always send if email is valid (IndiaMART leads are pre-verified by IndiaMART)
-      if (settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk) {
+      if (settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk && !alreadyEmailed) {
         queuedAutoResponses.push(lead);
       } else if (settings.autoResponseEnabled) {
-        console.log(`[AutoResponse] Skipped for ${lead.name} — phone valid: ${phoneVal.valid}, email valid: ${emailVal.valid}`);
+        if (alreadyEmailed) {
+          console.log(`[AutoResponse] Skipped for ${lead.name} — Mail already sent for this service`);
+        } else {
+          console.log(`[AutoResponse] Skipped for ${lead.name} — phone valid: ${phoneVal.valid}, email valid: ${emailVal.valid}`);
+        }
       }
     }
 
@@ -2068,6 +2100,14 @@ app.put('/api/leads/:id', async (req, res) => {
     updatedFields.phoneOwner = phoneVal.phoneOwner || null;
   }
 
+  if (req.body.clientStatus && req.body.clientStatus !== d.leads[i].clientStatus) {
+    if (!d.leads[i].statusHistory) d.leads[i].statusHistory = [d.leads[i].clientStatus || 'New'];
+    if (!d.leads[i].statusHistory.includes(req.body.clientStatus)) {
+      d.leads[i].statusHistory.push(req.body.clientStatus);
+    }
+    updatedFields.statusHistory = d.leads[i].statusHistory;
+  }
+
   d.leads[i] = { ...d.leads[i], ...updatedFields, updatedAt: new Date().toISOString() };
   await saveData(d);
   
@@ -2102,7 +2142,7 @@ app.delete('/api/leads/:id', async (req, res) => {
 // ─── Background Sync Jobs ───────────────────────────────────────────────────────
 // IndiaMART API limit is 1 hit per 5 minutes. Poll at that cadence so new leads
 // are picked up quickly, and run once shortly after startup.
-const AUTO_SYNC_INTERVAL_MS = 6 * 60 * 1000;
+const AUTO_SYNC_INTERVAL_MS = (5 * 60 * 1000) + 10000; // 5 mins and 10 seconds (IndiaMART limit is 5 mins)
 
 async function runBackgroundSync() {
   const settings = await loadSettings();
@@ -2139,9 +2179,75 @@ async function runBackgroundSync() {
   }
 }
 
-// Wait 7 minutes on startup before first sync to avoid IndiaMART rate limit during redeploys
-setTimeout(runBackgroundSync, 7 * 60 * 1000);
+async function processDueFollowups() {
+  const settings = await loadSettings();
+  if (settings.indiamartSyncEnabled === false || settings.autoResponseEnabled === false || !await isAutomationEnabled(settings)) {
+    return;
+  }
+  const d = await loadData();
+  if (!d.followups || d.followups.length === 0) return;
+
+  const now = new Date();
+  let changed = false;
+
+  for (const fu of d.followups) {
+    if (fu.date && !fu.sent && !fu.stoppedAt) {
+      const scheduledTime = new Date(fu.datetime || fu.date);
+      if (scheduledTime <= now) {
+        const lead = d.leads.find(l => l.id === fu.leadId);
+        if (lead && lead.email) {
+          console.log(`[Scheduled Followup] Sending automatic email to ${lead.email} for lead ${lead.name}`);
+          try {
+            const subject = fu.subject || `Following up: ${lead.product || 'Your enquiry'}`;
+            const body = fu.body || `Hi ${lead.name},\n\nI wanted to follow up on your enquiry.\n\nBest regards`;
+            
+            await sendEmailThroughProvider(settings, {
+              to: lead.email,
+              subject: subject,
+              html: body.replace(/\n/g, '<br>'),
+              attachments: getDefaultProposalAttachments()
+            });
+
+            if (!d.emails) d.emails = [];
+            d.emails.push({
+              id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+              leadId: lead.id,
+              to: lead.email,
+              subject,
+              body,
+              direction: 'sent',
+              sentAt: new Date().toISOString(),
+              autoResponse: false,
+              attachments: getDefaultProposalAttachments().map(a => ({ path: a.path, filename: a.filename }))
+            });
+
+            fu.sent = true;
+            fu.sentAt = new Date().toISOString();
+            lead.clientStatus = 'Replied via Email';
+            changed = true;
+            console.log(`[Scheduled Followup] ✅ Sent email to ${lead.email} successfully.`);
+          } catch (err) {
+            console.error(`[Scheduled Followup] ❌ Failed to send email to ${lead.email}:`, err.message);
+          }
+        }
+      }
+    }
+  }
+
+  if (changed) {
+    await saveData(d);
+    pushActivity('sync', 'Followup Sent', `Processed scheduled followups`);
+  }
+}
+
+// Wait 10 seconds on startup before first sync so leads are fetched quickly
+setTimeout(runBackgroundSync, 10 * 1000);
 setInterval(runBackgroundSync, AUTO_SYNC_INTERVAL_MS);
+
+// Check every 30 seconds for scheduled followups
+setTimeout(processDueFollowups, 15 * 1000);
+setInterval(processDueFollowups, 30000);
+
 
 // ─── AI Qualify (Gemini) ──────────────────────────────────────────────────────
 // Exact model IDs supported by v1beta API (verified June 2026)
@@ -2333,7 +2439,6 @@ app.post('/api/emails', async (req, res) => {
   d.emails.push(email);
   const leadIdx = d.leads.findIndex(l => l.id === leadId);
   if (leadIdx !== -1) {
-    d.leads[leadIdx].clientStatus = 'Contacted';
     d.leads[leadIdx].updatedAt = new Date().toISOString();
   }
   await saveData(d);
@@ -2383,6 +2488,19 @@ app.post('/api/send-email', requireAutomationOn, async (req, res) => {
   if (!d.emails) d.emails = [];
   const email = { id: Date.now().toString(36), leadId, to, subject, body, direction: 'sent', sentAt: new Date().toISOString(), attachments: attachments || [] };
   d.emails.push(email);
+  const leadIdx = d.leads.findIndex(l => l.id === leadId);
+  if (leadIdx !== -1) {
+    if (d.leads[leadIdx].clientStatus !== 'Replied via Email' && d.leads[leadIdx].clientStatus !== 'Replied in IndiaMART') {
+      if (d.leads[leadIdx].clientStatus !== 'Emailed') {
+        if (!d.leads[leadIdx].statusHistory) d.leads[leadIdx].statusHistory = [d.leads[leadIdx].clientStatus || 'New'];
+        if (!d.leads[leadIdx].statusHistory.includes('Emailed')) d.leads[leadIdx].statusHistory.push('Emailed');
+        d.leads[leadIdx].clientStatus = 'Emailed';
+      }
+    }
+    d.leads[leadIdx].emailSent = true;
+    d.leads[leadIdx].lastEmailSentAt = email.sentAt;
+    d.leads[leadIdx].updatedAt = email.sentAt;
+  }
   await saveData(d);
 
   if (isSmtpConfigured(settings)) {
@@ -2446,7 +2564,6 @@ app.post('/api/send-bulk-email', requireAutomationOn, async (req, res) => {
     d.emails.push(email);
     const leadIdx = d.leads.findIndex(l => l.id === lead.id);
     if (leadIdx !== -1) {
-      d.leads[leadIdx].clientStatus = 'Contacted';
       d.leads[leadIdx].updatedAt = new Date().toISOString();
     }
     results.push({ leadId: lead.id, name: lead.name, email: lead.email, sent, error });
@@ -2589,16 +2706,50 @@ app.delete('/api/followups/:leadId', async (req, res) => {
 
 app.get('/api/export/csv', async (req, res) => {
   const d = await loadData();
-  const headers = ['Name','Company','Email','Phone','City','State','Product','Message','Status','AI Score','Client Status','Source','Created','Followup Date','Emails Sent'];
+  const headers = ['Name','Company','Email','Phone','City','State','Product','Message','Status','AI Score','Client Status','Source','Created','Followup Date','Emails Sent','Replies Received','Last Emailed At'];
   const rows = d.leads.map(l => {
     const fu = (d.followups || []).find(f => f.leadId === l.id);
-    const emails = (d.emails || []).filter(e => e.leadId === l.id && e.direction === 'sent').length;
-    return [l.name, l.company, l.email, l.phone, l.city, l.state, l.product, (l.message||'').replace(/,/g,';').replace(/\n/g,' '), l.status||'New', l.score||'', l.clientStatus||'Prospect', l.source||'', l.createdAt?.slice(0,10)||'', fu?.date||'', emails].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',');
+    const emailsSent = (d.emails || []).filter(e => e.leadId === l.id && e.direction === 'sent').length;
+    const repliesRecv = (d.emails || []).filter(e => e.leadId === l.id && e.direction === 'received').length;
+    return [l.name, l.company, l.email, l.phone, l.city, l.state, l.product, (l.message||'').replace(/,/g,';').replace(/\n/g,' '), l.status||'New', l.score||'', l.clientStatus||'New', l.source||'', l.createdAt?.slice(0,10)||'', fu?.date||'', emailsSent, repliesRecv, l.lastEmailSentAt?.slice(0,10)||''].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',');
   });
   const csv = [headers.join(','), ...rows].join('\n');
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="leads.csv"');
   res.send(csv);
+});
+
+app.post('/api/export/excel/filtered', async (req, res) => {
+  try {
+    const { leadIds } = req.body;
+    if (!Array.isArray(leadIds)) return res.status(400).json({ error: 'Invalid leadIds' });
+    const d = await loadData();
+    const headers = ['Name','Company','Email','Phone','City','State','Product','Message','Status','AI Score','Client Status','Source','Created','Followup Date','Emails Sent','Replies Received','Last Emailed At'];
+    
+    const idSet = new Set(leadIds);
+    const exportLeads = d.leads.filter(l => idSet.has(l.id));
+
+    const rows = exportLeads.map(l => {
+      const fu = (d.followups || []).find(f => f.leadId === l.id);
+      const emailsSent = (d.emails || []).filter(e => e.leadId === l.id && e.direction === 'sent').length;
+      const repliesRecv = (d.emails || []).filter(e => e.leadId === l.id && e.direction === 'received').length;
+      return [l.name, l.company, l.email, l.phone, l.city, l.state, l.product, (l.message||'').replace(/\n/g,' '), l.status||'New', l.score||'', l.clientStatus||'New', l.source||'', l.createdAt?.slice(0,10)||'', fu?.date||'', emailsSent, repliesRecv, l.lastEmailSentAt?.slice(0,10)||''];
+    });
+
+    const worksheetData = [headers, ...rows];
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.aoa_to_sheet(worksheetData);
+    xlsx.utils.book_append_sheet(wb, ws, "Leads");
+    
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="filtered_leads.xlsx"');
+    res.send(buf);
+  } catch (err) {
+    console.error('[Export Filtered Excel Error]', err);
+    res.status(500).json({ error: 'Failed to export excel' });
+  }
 });
 
 // ─── SSE: Live Activity Stream endpoint ──────────────────────────────────────
