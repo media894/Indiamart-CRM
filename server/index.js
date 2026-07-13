@@ -1581,11 +1581,18 @@ async function processPendingAutoResponses(settings) {
   if (!settings.autoResponseEnabled) return;
   
   const data = await loadData();
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  
   const pendingLeads = (data.leads || []).filter(lead => {
     // Only process leads that are New or Prospect
     if (lead.clientStatus !== 'New' && lead.clientStatus !== 'Prospect') return false;
     // Must have a valid email
     if (!lead.email || lead.emailValid === false) return false;
+    
+    // Crucial: Only process leads created in the last 12 hours to avoid emailing historical data
+    const createdTime = lead.createdAt || lead.updatedAt;
+    if (!createdTime || createdTime < twelveHoursAgo) return false;
+
     // Check if we already emailed them for this specific service
     const alreadyEmailed = hasAutoResponseForLead(data, lead);
     return !alreadyEmailed;
