@@ -311,12 +311,18 @@ function hasAutoResponseForLead(data, lead) {
     return true;
   }
 
+  const serviceKey = getLeadServiceKey(lead);
+
   return (data.emails || []).some(email => {
     if (!email.autoResponse) return false;
     if (email.status === 'failed') return false;
     
-    const isSameLead = (email.leadId === lead.id) || (normalizeEmail(email.to) === emailKey);
-    return isSameLead;
+    const isSameEmail = (normalizeEmail(email.to) === emailKey);
+    if (!isSameEmail) return false;
+
+    // Check if the service matches
+    const emailServiceKey = email.serviceKey || getLeadServiceKey(email.leadSnapshot || {});
+    return emailServiceKey === serviceKey;
   });
 }
 async function loadSettings() {
@@ -1552,11 +1558,45 @@ async function triggerAutoResponse(lead, settings, data) {
       emailRecord.status = 'logged';
       emailRecord.note = 'SMTP not configured — logged only';
     }
-
     freshData.emails.push(emailRecord);
     await saveData(freshData);
   } finally {
     sendingEmails.delete(sendKey);
+  }
+}
+
+async function processPendingAutoResponses(settings) {
+  if (!settings.autoResponseEnabled) return;
+  
+  const data = await loadData();
+  const pendingLeads = (data.leads || []).filter(lead => {
+    // Only process leads that are New or Prospect
+    if (lead.clientStatus !== 'New' && lead.clientStatus !== 'Prospect') return false;
+    // Must have a valid email
+    if (!lead.email || lead.emailValid === false) return false;
+    // Check if we already emailed them for this specific service
+    const alreadyEmailed = hasAutoResponseForLead(data, lead);
+    return !alreadyEmailed;
+  });
+
+  if (pendingLeads.length > 0) {
+    console.log(`[PendingAutoResponse] Found ${pendingLeads.length} leads requiring autoresponse.`);
+    for (let i = 0; i < pendingLeads.length; i++) {
+      const lead = pendingLeads[i];
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, AUTO_EMAIL_DELAY_MS));
+      }
+      
+      const currentSettings = await loadSettings();
+      if (!currentSettings.autoResponseEnabled) break;
+      
+      try {
+        await triggerAutoResponse(lead, settings, data);
+        console.log(`[PendingAutoResponse] ✅ Sent autoresponse to ${lead.email}`);
+      } catch (e) {
+        console.error(`[PendingAutoResponse] ❌ Failed to send to ${lead.email}:`, e.message);
+      }
+    }
   }
 }
 
@@ -1757,6 +1797,12 @@ app.post('/api/automation/:mode', async (req, res) => {
         }
       } catch (e) {
         console.log(`[Automation] Pending lead sync failed: ${e.message}`);
+      }
+      try {
+        console.log('[Automation] Processing pending autoresponses for existing leads...');
+        await processPendingAutoResponses(next);
+      } catch (e) {
+        console.log('[Automation] Failed to process pending autoresponses:', e.message);
       }
     }, 500);
   }
@@ -2150,6 +2196,14 @@ async function runBackgroundSync() {
     console.log('[AutoSync] Webapp is OFF. Skipping background sync (IndiaMART & Gmail).');
     return;
   }
+
+  // Process any pending autoresponses for leads that arrived while automation was OFF
+  try {
+    await processPendingAutoResponses(settings);
+  } catch (err) {
+    console.error('[AutoSync] Error processing pending autoresponses:', err.message);
+  }
+
   if (settings.indiamartApiKey) {
     console.log('[AutoSync] Running background IndiaMART sync...');
     try {
