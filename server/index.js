@@ -320,8 +320,20 @@ function hasAutoResponseForLead(data, lead) {
     const isSameEmail = (normalizeEmail(email.to) === emailKey);
     if (!isSameEmail) return false;
 
-    // Check if the service matches
-    const emailServiceKey = email.serviceKey || getLeadServiceKey(email.leadSnapshot || {});
+    // Resolve service key with legacy fallback
+    let emailServiceKey = email.serviceKey;
+    if (!emailServiceKey) {
+      const originalLead = (data.leads || []).find(l => l.id === email.leadId);
+      if (originalLead) {
+        emailServiceKey = getLeadServiceKey(originalLead);
+      } else if (email.leadSnapshot) {
+        emailServiceKey = getLeadServiceKey(email.leadSnapshot);
+      } else {
+        // Legacy email record with no service details — treat as matched to avoid duplicate
+        return true;
+      }
+    }
+
     return emailServiceKey === serviceKey;
   });
 }
