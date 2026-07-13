@@ -702,6 +702,23 @@ tr:hover td{background:rgba(255,255,255,0.03)}
   </div>
 </div>
 
+<!-- View Email Message Details -->
+<div class="overlay" id="modal-view-email">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title" id="ve-title">Email Details</span>
+      <button class="modal-close" onclick="closeModal('view-email')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div style="font-size:13.5px;color:var(--text);margin-bottom:14px;background:var(--bg);padding:12px;border-radius:var(--radius);line-height:1.6;border:1px solid var(--border)" id="ve-meta"></div>
+    <div class="field"><label style="font-weight:600">Subject</label><input id="ve-subject" readonly style="background:var(--bg);color:var(--text);border:1px solid var(--border);opacity:0.9"></div>
+    <div class="field"><label style="font-weight:600">Message Body</label><textarea id="ve-body" readonly style="min-height:220px;background:var(--bg);color:var(--text);border:1px solid var(--border);resize:vertical;opacity:0.9;font-family:inherit;line-height:1.6"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn primary" id="ve-btn-reply">Reply to Lead</button>
+      <button class="btn" onclick="closeModal('view-email')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1498,7 +1515,7 @@ function renderInbox() {
       }
     }
     
-    return `<div class="email-msg ${e.direction||'sent'}" onclick="this.classList.toggle('expanded'); if('${e.direction}'==='received') { markAsRead('${e.id}'); this.style.borderLeft='1px solid ${borderColor}'; this.querySelector('.email-subject').style.fontWeight='600'; }" style="margin-bottom:12px;position:relative;padding:14px;border:1px solid ${borderColor}; ${isUnread ? 'border-left:4px solid var(--purple);' : ''} border-radius:var(--radius);background:${bgColor};cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow-sm)">
+    return `<div class="email-msg ${e.direction||'sent'}" onclick="if('${e.direction}'==='received') { markAsRead('${e.id}'); } viewEmailDetail('${e.id}');" style="margin-bottom:12px;position:relative;padding:14px;border:1px solid ${borderColor}; ${isUnread ? 'border-left:4px solid var(--purple);' : ''} border-radius:var(--radius);background:${bgColor};cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow-sm)">
       <button class="btn sm danger" style="position:absolute;top:10px;right:10px;padding:3px 8px;font-size:11px;z-index:2;background:var(--surface)" onclick="deleteEmail('${e.id}', event)" title="Delete Email">
         Delete
       </button>
@@ -1648,6 +1665,21 @@ function renderFollowups() {
   }).join('');
 }
 
+function isRealReply(email) {
+  if (email.direction !== 'received') return false;
+  const subject = (email.subject || '').toLowerCase();
+  if (
+    subject.includes('delivery status notification') ||
+    subject.includes('undeliverable') ||
+    subject.includes('mail delivery failed') ||
+    subject.includes('returned mail') ||
+    subject.includes('failure notice')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function checkBadges() {
   if (!automationEnabled) {
     const badgeFu=document.getElementById('badge-fu');
@@ -1664,7 +1696,7 @@ function checkBadges() {
     badgeFu.textContent=fuDue;
   }
 
-  const unreadReplies=emails.filter(e=>e.direction==='received' && !readReplyIds.has(e.id)).length;
+  const unreadReplies=emails.filter(e=>isRealReply(e) && !readReplyIds.has(e.id)).length;
   const badgeInbox=document.getElementById('badge-inbox');
   if (badgeInbox) {
     badgeInbox.style.display=unreadReplies?'inline':'none';
@@ -1937,7 +1969,7 @@ function openReplyFromAlert(leadId, replyId, btn) {
   persistAcknowledgedState();
   updateNotificationsUI();
   checkBadges();
-  viewLead(leadId);
+  viewEmailDetail(replyId);
   btn.parentElement.remove();
 }
 
@@ -1949,7 +1981,7 @@ function updateNotificationsUI() {
     });
     return;
   }
-  const replies = emails.filter(e => e.direction === 'received');
+  const replies = emails.filter(e => isRealReply(e));
   const unreadReplies = replies.filter(r => !readReplyIds.has(r.id));
   const count = unreadReplies.length;
   
@@ -1965,6 +1997,7 @@ function updateNotificationsUI() {
   document.querySelectorAll('.notif-dropdown-list').forEach(list => {
     if (!replies.length) {
       list.innerHTML = `<div style="padding:16px;text-align:center;color:var(--hint);font-size:12px">No replies yet</div>`;
+      return;
     }
     const sorted = [...replies].sort((a,b) => new Date(b.receivedAt || b.sentAt) - new Date(a.receivedAt || a.sentAt)).slice(0, 5);
     list.innerHTML = sorted.map(r => {
@@ -1993,13 +2026,13 @@ function selectNotification(leadId, replyId) {
   updateNotificationsUI();
   checkBadges();
   document.querySelectorAll('.notif-dropdown').forEach(d => d.classList.remove('open'));
-  viewLead(leadId);
+  viewEmailDetail(replyId);
 }
 
 // Mark all as read
 function markAllRepliesAsRead(event) {
   event.stopPropagation();
-  const replies = emails.filter(e => e.direction === 'received');
+  const replies = emails.filter(e => isRealReply(e));
   replies.forEach(r => {
     readReplyIds.add(r.id);
     acknowledgedReplyIds.add(r.id);
@@ -2038,6 +2071,37 @@ document.addEventListener('click', () => {
 });
 
 
+
+function viewEmailDetail(emailId) {
+  const e = emails.find(x => x.id === emailId);
+  if (!e) return;
+  const l = leads.find(x => x.id === e.leadId) || { name: 'Unknown', company: '', email: e.to };
+  
+  document.getElementById('ve-title').textContent = e.direction === 'received' ? `Reply from ${l.name}` : `Email to ${l.name}`;
+  
+  const formattedDate = new Date(e.sentAt || e.receivedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  document.getElementById('ve-meta').innerHTML = `
+    <strong>From:</strong> ${e.direction === 'received' ? `${l.name} &lt;${e.to || l.email}&gt;` : 'ODD INFOTECH'}<br>
+    <strong>To:</strong> ${e.direction === 'received' ? 'ODD INFOTECH' : `${l.name} &lt;${e.to || l.email}&gt;`}<br>
+    <strong>Date:</strong> ${formattedDate}
+  `;
+  
+  document.getElementById('ve-subject').value = e.subject || '(No Subject)';
+  document.getElementById('ve-body').value = e.body || '';
+  
+  const replyBtn = document.getElementById('ve-btn-reply');
+  if (e.direction === 'received' && l.id) {
+    replyBtn.style.display = 'block';
+    replyBtn.onclick = () => {
+      closeModal('view-email');
+      openEmail(l.id);
+    };
+  } else {
+    replyBtn.style.display = 'none';
+  }
+  
+  openModal('view-email');
+}
 
 init();
 </script>
