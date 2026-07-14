@@ -315,7 +315,6 @@ function hasAutoResponseForLead(data, lead) {
 
   return (data.emails || []).some(email => {
     if (!email.autoResponse) return false;
-    if (email.status === 'failed') return false;
     
     const isSameEmail = (normalizeEmail(email.to) === emailKey);
     if (!isSameEmail) return false;
@@ -413,9 +412,9 @@ function createSmtpTransport(settings) {
     secure: port === 465,
     auth: { user: settings.smtpUser, pass: settings.smtpPass },
     tls: { rejectUnauthorized: false, minVersion: 'TLSv1.2' },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
+    connectionTimeout: 60000,
+    greetingTimeout: 60000,
+    socketTimeout: 120000,
     debug: true,
     logger: true,
     family: 4 // Force IPv4 to prevent IPv6 timeouts in Node 17+
