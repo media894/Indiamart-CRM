@@ -413,6 +413,10 @@ tr:hover td{background:rgba(255,255,255,0.03)}
       Followups
       <span class="nav-badge" id="badge-fu" style="display:none">!</span>
     </button>
+    <button class="nav-item" onclick="nav('whatsapp',this)">
+      <svg viewBox="0 0 24 24" style="fill:currentColor; stroke:none;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      WhatsApp Link
+    </button>
     <!-- Export CSV link removed -->
 
 
@@ -597,6 +601,84 @@ tr:hover td{background:rgba(255,255,255,0.03)}
   </div>
 </div>
 
+<!-- ── WhatsApp Link view ── -->
+<div class="view" id="view-whatsapp">
+  <div class="topbar">
+    <h2>WhatsApp Integration</h2>
+  </div>
+  <div style="padding:20px 24px">
+    
+    <!-- Connection card -->
+    <div class="settings-section" style="display:flex; flex-direction:column; gap:16px; align-items:center; max-width: 500px; margin: 0 auto 24px; text-align:center;">
+      <div class="settings-title" style="width:100%">WhatsApp Connection Status</div>
+      
+      <div id="wa-status-badge" style="font-size:14px; font-weight:bold; padding:6px 12px; border-radius:20px; background:var(--gray-lt); color:var(--gray)">
+        Checking status...
+      </div>
+      
+      <!-- QR code container -->
+      <div id="wa-qr-container" style="display:none; background:white; padding:16px; border-radius:12px; box-shadow:var(--shadow);">
+        <img id="wa-qr-img" src="" alt="Scan WhatsApp QR Code" style="width:200px; height:200px; display:block;" />
+        <p style="font-size:12px; color:#555; margin-top:8px; font-weight:500;">Open WhatsApp -> Linked Devices -> Scan this code</p>
+      </div>
+
+      <!-- Action button (disconnect) -->
+      <button class="btn danger" id="wa-disconnect-btn" style="display:none;" onclick="disconnectWhatsAppClient()">
+        Disconnect WhatsApp
+      </button>
+    </div>
+
+    <!-- Templates card -->
+    <div class="settings-section" style="max-width:800px; margin: 0 auto;">
+      <div class="settings-title">WhatsApp Message Templates</div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:16px">
+        Customize the messages sent to clients when you click the WhatsApp icon next to a lead. Use <code>{{name}}</code> for client greeting name, and <code>{{product}}</code> for the enquired product.
+      </p>
+      
+      <div class="row2">
+        <div class="field" style="flex:1;">
+          <label style="font-weight:600">Default Template</label>
+          <textarea id="wa-tpl-default" style="width:100%; height:120px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:8px; font-family:inherit; font-size:13px; box-sizing:border-box;"></textarea>
+        </div>
+      </div>
+
+      <h3 style="font-size:13px; margin:20px 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px">Service Specific Templates</h3>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div class="field">
+          <label>T Shirt Printing</label>
+          <textarea id="wa-tpl-tshirtprinting" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+        </div>
+        <div class="field">
+          <label>T Shirt Embroidery</label>
+          <textarea id="wa-tpl-tshirtembroidery" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+        </div>
+        <div class="field">
+          <label>Embroidery Digitizing</label>
+          <textarea id="wa-tpl-embroidery" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+        </div>
+        <div class="field">
+          <label>Data Entry</label>
+          <textarea id="wa-tpl-dataentry" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+        </div>
+        <div class="field">
+          <label>Live Chat Support</label>
+          <textarea id="wa-tpl-livechat" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+        </div>
+        <div class="field">
+          <label>Image Editing</label>
+          <textarea id="wa-tpl-imageediting" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+        <button class="btn primary" onclick="saveWhatsAppTemplates()">Save Templates</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 
 
 </main>
@@ -753,11 +835,157 @@ function nav(view, btn) {
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   btn.classList.add('active');
+  
+  stopWhatsAppStatusPolling();
+
   if (view==='qualify') renderQualify();
   if (view==='inbox') renderInbox();
   if (view==='followups') renderFollowups();
   if (view==='bulkmail') renderBulkMail();
+  if (view==='whatsapp') {
+    startWhatsAppStatusPolling();
+    loadWhatsAppTemplates();
+  }
+}
 
+let waStatusTimer = null;
+
+async function checkWhatsAppStatus() {
+  try {
+    const r = await fetch(`${API}/whatsapp/status`).then(res => res.json());
+    const badge = document.getElementById('wa-status-badge');
+    const qrContainer = document.getElementById('wa-qr-container');
+    const qrImg = document.getElementById('wa-qr-img');
+    const disconnectBtn = document.getElementById('wa-disconnect-btn');
+
+    if (!badge || !qrContainer || !qrImg || !disconnectBtn) return;
+
+    if (r.status === 'CONNECTED') {
+      badge.textContent = 'CONNECTED ✓';
+      badge.style.background = '#d1fae5';
+      badge.style.color = '#10b981';
+      qrContainer.style.display = 'none';
+      disconnectBtn.style.display = 'inline-block';
+    } else if (r.status === 'SCAN_REQUIRED' && r.qrCodeData) {
+      badge.textContent = 'SCAN REQUIRED';
+      badge.style.background = '#fef3c7';
+      badge.style.color = '#d97706';
+      qrImg.src = r.qrCodeData;
+      qrContainer.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+    } else if (r.status === 'CONNECTING') {
+      badge.textContent = 'CONNECTING...';
+      badge.style.background = '#dbeafe';
+      badge.style.color = '#2563eb';
+      qrContainer.style.display = 'none';
+      disconnectBtn.style.display = 'none';
+    } else {
+      badge.textContent = 'DISCONNECTED';
+      badge.style.background = '#fee2e2';
+      badge.style.color = '#ef4444';
+      qrContainer.style.display = 'none';
+      disconnectBtn.style.display = 'none';
+    }
+  } catch (err) {
+    console.error('Failed to check WhatsApp status:', err);
+  }
+}
+
+function startWhatsAppStatusPolling() {
+  if (waStatusTimer) clearInterval(waStatusTimer);
+  checkWhatsAppStatus();
+  waStatusTimer = setInterval(checkWhatsAppStatus, 5000);
+}
+
+function stopWhatsAppStatusPolling() {
+  if (waStatusTimer) {
+    clearInterval(waStatusTimer);
+    waStatusTimer = null;
+  }
+}
+
+async function disconnectWhatsAppClient() {
+  if (!confirm('Are you sure you want to disconnect WhatsApp?')) return;
+  try {
+    await fetch(`${API}/whatsapp/disconnect`, { method: 'POST' });
+    toast('Disconnecting WhatsApp...', 'info');
+    checkWhatsAppStatus();
+  } catch (err) {
+    toast('Failed to disconnect WhatsApp', 'error');
+  }
+}
+
+async function loadWhatsAppTemplates() {
+  try {
+    const s = await fetch(`${API}/settings`).then(r => r.json());
+    if (s && s.whatsappTemplates) {
+      const keys = ['default', 'tshirtprinting', 'tshirtembroidery', 'embroidery', 'dataentry', 'livechat', 'imageediting'];
+      keys.forEach(k => {
+        const el = document.getElementById('wa-tpl-' + k);
+        if (el) el.value = s.whatsappTemplates[k] || '';
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load WhatsApp templates:', err);
+  }
+}
+
+async function saveWhatsAppTemplates() {
+  try {
+    const s = await fetch(`${API}/settings`).then(r => r.json());
+    if (!s.whatsappTemplates) s.whatsappTemplates = {};
+    
+    const keys = ['default', 'tshirtprinting', 'tshirtembroidery', 'embroidery', 'dataentry', 'livechat', 'imageediting'];
+    keys.forEach(k => {
+      const el = document.getElementById('wa-tpl-' + k);
+      if (el) s.whatsappTemplates[k] = el.value.trim();
+    });
+
+    const r = await fetch(`${API}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s)
+    }).then(res => res.json());
+
+    if (r.ok) {
+      toast('WhatsApp Templates saved successfully!', 'success');
+    } else {
+      toast('Failed to save templates', 'error');
+    }
+  } catch (err) {
+    toast('Error saving templates', 'error');
+  }
+}
+
+async function sendWhatsAppTemplate(leadId, btn) {
+  if (!automationEnabled) {
+    toast('Automation is turned OFF. Please turn it ON to send messages.', 'error');
+    return;
+  }
+
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = `<span style="font-size:10px;">...</span>`;
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/whatsapp/send-template`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId })
+    }).then(res => res.json());
+
+    if (r.ok) {
+      toast('WhatsApp message sent successfully!', 'success');
+      setTimeout(fetchLeads, 1000);
+    } else {
+      toast(r.error || 'Failed to send WhatsApp message', 'error');
+    }
+  } catch (err) {
+    toast('Error sending WhatsApp message', 'error');
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
 }
 
 // ─── Sync IndiaMART ───────────────────────────────────────────────────────────
@@ -1025,6 +1253,9 @@ function renderLeads() {
         <div style="display:flex;gap:4px">
           <button class="btn sm" title="View detail" onclick="viewLead('${l.id}')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
           <button class="btn sm" title="Send email" onclick="openEmail('${l.id}')"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></button>
+          ${l.phone ? `<button class="btn sm" title="Send WhatsApp" style="background:#25d366; border-color:#25d366; color:white;" onclick="sendWhatsAppTemplate('${l.id}', this)">
+            <svg viewBox="0 0 24 24" style="fill:currentColor; stroke:none; width:12px; height:12px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          </button>` : ''}
           <button class="btn sm" title="AI Score" onclick="qualify('${l.id}')"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
           <button class="btn sm" title="Edit" onclick="editLead('${l.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button class="btn sm danger" title="Delete" onclick="deleteLead('${l.id}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
