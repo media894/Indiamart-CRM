@@ -946,7 +946,8 @@ async function sendWhatsAppTemplate(leadId, btn) {
       toast(r.error || 'Failed to send WhatsApp message', 'error');
     }
   } catch (err) {
-    toast('Error sending WhatsApp message', 'error');
+    console.error('[WhatsApp Client Error]', err);
+    toast('Error: ' + err.message, 'error');
   } finally {
     btn.innerHTML = originalHtml;
     btn.disabled = false;
