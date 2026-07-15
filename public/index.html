@@ -941,7 +941,15 @@ async function sendWhatsAppTemplate(leadId, btn) {
 
     if (r.ok) {
       toast('WhatsApp message sent successfully!', 'success');
-      setTimeout(fetchLeads, 1000);
+      setTimeout(() => {
+        fetch(`${API}/leads`)
+          .then(res => res.json())
+          .then(d => {
+            leads = d;
+            renderAll();
+          })
+          .catch(() => {});
+      }, 1000);
     } else {
       toast(r.error || 'Failed to send WhatsApp message', 'error');
     }
