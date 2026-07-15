@@ -369,17 +369,7 @@ async function loadSettings() {
   if (!s.autoResponseBody) s.autoResponseBody = 'Hi {{name}},\n\nThank you for your enquiry about {{product}}.\n\nWe will get back to you shortly.\n\nBest regards';
   if (!s.whatsappTemplates) {
     s.whatsappTemplates = {
-      default: "Hi {{name}},\n\nThank you for your inquiry about {{product}}. We have sent a detailed proposal to your email.\n\nBest regards,\nODD INFOTECH",
-      tshirtprinting: "Hi {{name}},\n\nI am pleased to introduce our professional T Shirt Printing Services designed for corporate branding, promotional campaigns, and custom apparel.\n\nWe have sent our portfolio and quotation to your email. Let us know your requirement details (quantity, neck style) to get started!\n\nBest regards,\nODD INFOTECH",
-      tshirtembroidery: "Hi {{name}},\n\nI am pleased to introduce our premium T Shirt Embroidery Services designed to deliver high-quality machine embroidery on round neck, V-neck, and polo T-shirts.\n\nWe have sent details and our portfolio to your email. Let us know how we can support you!\n\nBest regards,\nODD INFOTECH",
-      embroidery: "Hi {{name}},\n\nThank you for your interest in our Custom Embroidery Digitizing Services. We offer aesthetic and flawless custom digitizing with quick turnaround.\n\nWe have sent our portfolio and quotation to your email. Feel free to reply with your designs!\n\nBest regards,\nODD INFOTECH",
-      dataentry: "Hi {{name}},\n\nThank you for your inquiry regarding our Data Entry Services. We provide fast, accurate, and secure online/offline data entry solutions.\n\nWe have sent details to your email. Let us know how we can support your business operations!\n\nBest regards,\nODD INFOTECH",
-      livechat: "Hi {{name}},\n\nThank you for your enquiry about our 24/7 Live Chat Support Services. We help businesses engage visitors and convert leads.\n\nWe have sent details to your email. Let us know a convenient time to schedule a quick call!\n\nBest regards,\nODD INFOTECH",
-      imageediting: "Hi {{name}},\n\nThank you for your interest in our Image Editing and Background Removal Services. We provide professional retouching and clipping paths.\n\nWe have sent details and samples to your email. Let us know if you have a test image for us!\n\nBest regards,\nODD INFOTECH",
-      emailmarketing: "Hi {{name}},\n\nThank you for your interest in our Email Marketing Services. We help set up campaigns, verify leads, and boost open rates.\n\nWe have sent details to your email. Let us know if you'd like to schedule a quick call!\n\nBest regards,\nODD INFOTECH",
-      vector: "Hi {{name}},\n\nThank you for your inquiry regarding our Vector Artwork and JPG to Vector Conversion Services. We provide clean, scalable vector logos and redraws.\n\nWe have sent details and samples to your email. Feel free to reply with your logo!\n\nBest regards,\nODD INFOTECH",
-      aiml: "Hi {{name}},\n\nThank you for your interest in our AI & Machine Learning Services. We build custom agentic workflows and intelligent integrations.\n\nWe have sent details to your email. Let us know if you'd like to schedule a brief call to discuss your project!\n\nBest regards,\nODD INFOTECH",
-      graphic: "Hi {{name}},\n\nI am pleased to introduce our professional Graphic Design Services, including logo design, branding, and marketing assets.\n\nWe have sent our portfolio to your email. Let us know your requirements to get started!\n\nBest regards,\nODD INFOTECH"
+      default: "Hi,\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding ({{product}}). Kindly please share more details about your requirements. Let me know the suitable time to talk to you."
     };
   }
 
@@ -1835,8 +1825,21 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
   }
 
   // Personalize message
+  const serviceSubjectMap = {
+    tshirtembroidery: 'T Shirt Embroidery Services',
+    tshirtprinting: 'T Shirt Printing Services',
+    embroidery: 'Embroidery Digitizing Services',
+    dataentry: 'Data Entry Services',
+    livechat: 'Live Chat Support Services',
+    imageediting: 'Image Editing Services',
+    emailmarketing: 'Email Marketing Services',
+    vector: 'Vector Artwork Services',
+    aiml: 'AI & Machine Learning Services',
+    graphic: 'Graphic Design Services'
+  };
+  const standardService = serviceSubjectMap[serviceKey] || 'Graphic Design Services';
   const firstName = getGreetingName(lead);
-  const product = lead.product || 'our services';
+  const product = lead.product || standardService;
   const company = lead.company || '';
   const messageText = templateText
     .replace(/\{\{\s*name\s*\}\}/gi, firstName)

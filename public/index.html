@@ -630,49 +630,20 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 
     <!-- Templates card -->
     <div class="settings-section" style="max-width:800px; margin: 0 auto;">
-      <div class="settings-title">WhatsApp Message Templates</div>
+      <div class="settings-title">WhatsApp Message Template</div>
       <p style="font-size:12px; color:var(--muted); margin-bottom:16px">
-        Customize the messages sent to clients when you click the WhatsApp icon next to a lead. Use <code>{{name}}</code> for client greeting name, and <code>{{product}}</code> for the enquired product.
+        Customize the message sent to clients when you click the WhatsApp icon next to a lead. Use <code>{{product}}</code> to automatically insert the lead's service/product name in brackets.
       </p>
       
       <div class="row2">
         <div class="field" style="flex:1;">
-          <label style="font-weight:600">Default Template</label>
-          <textarea id="wa-tpl-default" style="width:100%; height:120px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:8px; font-family:inherit; font-size:13px; box-sizing:border-box;"></textarea>
-        </div>
-      </div>
-
-      <h3 style="font-size:13px; margin:20px 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px">Service Specific Templates</h3>
-      
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-        <div class="field">
-          <label>T Shirt Printing</label>
-          <textarea id="wa-tpl-tshirtprinting" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
-        </div>
-        <div class="field">
-          <label>T Shirt Embroidery</label>
-          <textarea id="wa-tpl-tshirtembroidery" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
-        </div>
-        <div class="field">
-          <label>Embroidery Digitizing</label>
-          <textarea id="wa-tpl-embroidery" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
-        </div>
-        <div class="field">
-          <label>Data Entry</label>
-          <textarea id="wa-tpl-dataentry" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
-        </div>
-        <div class="field">
-          <label>Live Chat Support</label>
-          <textarea id="wa-tpl-livechat" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
-        </div>
-        <div class="field">
-          <label>Image Editing</label>
-          <textarea id="wa-tpl-imageediting" style="width:100%; height:100px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px; font-size:12.5px; box-sizing:border-box;"></textarea>
+          <label style="font-weight:600">WhatsApp Message</label>
+          <textarea id="wa-tpl-default" style="width:100%; height:180px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:8px; font-family:inherit; font-size:13px; box-sizing:border-box; line-height: 1.5;"></textarea>
         </div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; margin-top:20px;">
-        <button class="btn primary" onclick="saveWhatsAppTemplates()">Save Templates</button>
+        <button class="btn primary" onclick="saveWhatsAppTemplates()">Save Template</button>
       </div>
     </div>
 
@@ -919,14 +890,11 @@ async function loadWhatsAppTemplates() {
   try {
     const s = await fetch(`${API}/settings`).then(r => r.json());
     if (s && s.whatsappTemplates) {
-      const keys = ['default', 'tshirtprinting', 'tshirtembroidery', 'embroidery', 'dataentry', 'livechat', 'imageediting'];
-      keys.forEach(k => {
-        const el = document.getElementById('wa-tpl-' + k);
-        if (el) el.value = s.whatsappTemplates[k] || '';
-      });
+      const el = document.getElementById('wa-tpl-default');
+      if (el) el.value = s.whatsappTemplates.default || '';
     }
   } catch (err) {
-    console.error('Failed to load WhatsApp templates:', err);
+    console.error('Failed to load WhatsApp template:', err);
   }
 }
 
@@ -935,11 +903,8 @@ async function saveWhatsAppTemplates() {
     const s = await fetch(`${API}/settings`).then(r => r.json());
     if (!s.whatsappTemplates) s.whatsappTemplates = {};
     
-    const keys = ['default', 'tshirtprinting', 'tshirtembroidery', 'embroidery', 'dataentry', 'livechat', 'imageediting'];
-    keys.forEach(k => {
-      const el = document.getElementById('wa-tpl-' + k);
-      if (el) s.whatsappTemplates[k] = el.value.trim();
-    });
+    const el = document.getElementById('wa-tpl-default');
+    if (el) s.whatsappTemplates.default = el.value.trim();
 
     const r = await fetch(`${API}/settings`, {
       method: 'POST',
@@ -948,12 +913,12 @@ async function saveWhatsAppTemplates() {
     }).then(res => res.json());
 
     if (r.ok) {
-      toast('WhatsApp Templates saved successfully!', 'success');
+      toast('WhatsApp Template saved successfully!', 'success');
     } else {
-      toast('Failed to save templates', 'error');
+      toast('Failed to save template', 'error');
     }
   } catch (err) {
-    toast('Error saving templates', 'error');
+    toast('Error saving template', 'error');
   }
 }
 
