@@ -627,12 +627,11 @@ tr:hover td{background:rgba(255,255,255,0.03)}
       <div class="field"><label>Client Status</label>
         <select id="f-clientstatus">
           <option value="New">New</option>
-          <option value="Contacted">Contacted</option>
+          <option value="Emailed">Emailed</option>
           <option value="Replied via Email">Replied via Email</option>
-          <option value="Replied in IndiaMART">Replied in IndiaMART</option>
-          <option value="Negotiating">Negotiating</option>
-          <option value="Client">Client</option>
-          <option value="Lost">Lost</option>
+          <option value="Bounced">Bounced</option>
+          <option value="No Email">No Email</option>
+          <option value="Auto-Skipped">Auto-Skipped</option>
         </select>
       </div>
       <div class="field"><label>Lead Quality</label>
@@ -906,7 +905,14 @@ function emailValidationBadge(l) {
 }
 
 function statusBadge(s) {
-  const map={Hot:'hot',Warm:'warm',Cold:'cold',New:'new',Client:'client',Lost:'lost',Prospect:'prospect',Replied:'replied',Negotiating:'negotiating'};
+  const map={
+    Hot:'hot',Warm:'warm',Cold:'cold',New:'new',Client:'client',Lost:'lost',Prospect:'prospect',Replied:'replied',Negotiating:'negotiating',
+    'Emailed':'replied',
+    'Replied via Email':'prospect',
+    'Bounced':'lost',
+    'No Email':'cold',
+    'Auto-Skipped':'cold'
+  };
   return `<span class="badge ${map[s]||'new'}">${s||'New'}</span>`;
 }
 
@@ -996,18 +1002,18 @@ function renderLeads() {
             else if (l.emailValid === false) effectiveStatus = 'Bounced';
             else if (effectiveStatus === 'New' && l.emailSent) effectiveStatus = 'Emailed';
             
-            return ['New','Contacted in IndiaMART','Emailed','Auto-Skipped','Replied via Email','Replied in IndiaMART','Negotiating','Lost','Bounced','No Email'].map(s=>{
-              let positiveActions = ['Contacted in IndiaMART','Emailed','Auto-Skipped','Replied via Email','Replied in IndiaMART','Negotiating'];
+            return ['New','Emailed','Replied via Email','Bounced','No Email','Auto-Skipped'].map(s=>{
+              let positiveActions = ['Emailed','Replied via Email','Auto-Skipped'];
               let isHappened = positiveActions.includes(s) && (
                                (s === 'Emailed' && l.emailSent) || 
                                (s === 'Auto-Skipped' && effectiveStatus === 'Auto-Skipped') ||
                                (l.statusHistory && l.statusHistory.includes(s)) || 
                                (s === effectiveStatus));
               let isSelected = (effectiveStatus === s);
-              let style = (isHappened || (isSelected && s !== 'New' && s !== 'Lost' && s !== 'Bounced' && s !== 'No Email')) ? 'color: #10b981; font-weight: bold;' : '';
+              let style = (isHappened || (isSelected && s !== 'New' && s !== 'Bounced' && s !== 'No Email')) ? 'color: #10b981; font-weight: bold;' : '';
               if (s === 'Bounced' && isSelected) style = 'color: #ef4444; font-weight: bold;';
               if (s === 'No Email' && isSelected) style = 'color: #f59e0b; font-weight: bold;';
-              let label = (isHappened || (isSelected && s !== 'New' && s !== 'Lost' && s !== 'Bounced' && s !== 'No Email')) ? s + ' ✓' : s;
+              let label = (isHappened || (isSelected && s !== 'New' && s !== 'Bounced' && s !== 'No Email')) ? s + ' ✓' : s;
               if (s === 'Bounced' && isSelected) label = 'Bounced ❌';
               if (s === 'No Email' && isSelected) label = 'No Email ⚠️';
               return `<option value="${s}" style="${style}" ${isSelected?'selected':''}>${label}</option>`;
@@ -1042,7 +1048,13 @@ function editLead(id) {
   ['name','company','email','phone','city','state','product','message'].forEach(k=>{ const el=document.getElementById('f-'+k); if(el) el.value=l[k]||''; });
   document.getElementById('f-source').value=l.source||'Manual';
   document.getElementById('f-status').value=l.status||'New';
-  document.getElementById('f-clientstatus').value=l.clientStatus||'Prospect';
+  let clientStatusVal = l.clientStatus || 'New';
+  if (['Prospect', 'Contacted', 'Lost', 'Client', 'Closed', 'Negotiating'].includes(clientStatusVal)) {
+    clientStatusVal = 'New';
+  } else if (['Replied', 'Replied in IndiaMART'].includes(clientStatusVal)) {
+    clientStatusVal = 'Replied via Email';
+  }
+  document.getElementById('f-clientstatus').value=clientStatusVal;
   openModal('lead');
 }
 function clearForm() { ['name','company','email','phone','city','state','product','message'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value='';}); }
@@ -1564,7 +1576,7 @@ async function logReply() {
   emails.push(r);
   // Update lead clientStatus in local state
   const i=leads.findIndex(l=>l.id===leadId);
-  if (i>=0&&leads[i].clientStatus==='Prospect') { leads[i].clientStatus='Replied'; }
+  if (i>=0 && (leads[i].clientStatus==='New' || leads[i].clientStatus==='Emailed')) { leads[i].clientStatus='Replied via Email'; }
   closeModal('reply'); renderAll(); renderInbox(); toast('Reply logged','success');
 }
 
