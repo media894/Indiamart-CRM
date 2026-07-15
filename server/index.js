@@ -369,7 +369,7 @@ async function loadSettings() {
   if (!s.autoResponseBody) s.autoResponseBody = 'Hi {{name}},\n\nThank you for your enquiry about {{product}}.\n\nWe will get back to you shortly.\n\nBest regards';
   if (!s.whatsappTemplates) {
     s.whatsappTemplates = {
-      default: "Hi,\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding ({{product}}). Kindly please share more details about your requirements. Let me know the suitable time to talk to you."
+      default: "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding ({{product}}). Kindly please share more details about your requirements. Let me know the suitable time to talk to you."
     };
   }
 
