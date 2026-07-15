@@ -1869,18 +1869,18 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
       channel: 'whatsapp'
     });
     
-    // Update lead status to Emailed
+    // Update lead status to WhatsApp Sent
     const leadIdx = d.leads.findIndex(l => l.id === lead.id);
     if (leadIdx !== -1) {
-      if (d.leads[leadIdx].clientStatus !== 'Replied via Email') {
-        if (d.leads[leadIdx].clientStatus !== 'Emailed') {
-          if (!d.leads[leadIdx].statusHistory) d.leads[leadIdx].statusHistory = [d.leads[leadIdx].clientStatus || 'New'];
-          if (!d.leads[leadIdx].statusHistory.includes('Emailed')) d.leads[leadIdx].statusHistory.push('Emailed');
-          d.leads[leadIdx].clientStatus = 'Emailed';
-        }
+      if (!d.leads[leadIdx].statusHistory) {
+        d.leads[leadIdx].statusHistory = [d.leads[leadIdx].clientStatus || 'New'];
       }
-      d.leads[leadIdx].emailSent = true;
-      d.leads[leadIdx].lastEmailSentAt = new Date().toISOString();
+      if (!d.leads[leadIdx].statusHistory.includes('WhatsApp Sent')) {
+        d.leads[leadIdx].statusHistory.push('WhatsApp Sent');
+      }
+      d.leads[leadIdx].clientStatus = 'WhatsApp Sent';
+      d.leads[leadIdx].whatsappSent = true;
+      d.leads[leadIdx].lastWhatsappSentAt = new Date().toISOString();
       d.leads[leadIdx].updatedAt = new Date().toISOString();
     }
     await saveData(d);

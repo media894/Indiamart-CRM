@@ -682,6 +682,7 @@ tr:hover td{background:rgba(255,255,255,0.03)}
           <option value="New">New</option>
           <option value="Emailed">Emailed</option>
           <option value="Replied via Email">Replied via Email</option>
+          <option value="WhatsApp Sent">WhatsApp Sent</option>
           <option value="Bounced">Bounced</option>
           <option value="No Email">No Email</option>
           <option value="Auto-Skipped">Auto-Skipped</option>
@@ -1111,6 +1112,7 @@ function statusBadge(s) {
     Hot:'hot',Warm:'warm',Cold:'cold',New:'new',Client:'client',Lost:'lost',Prospect:'prospect',Replied:'replied',Negotiating:'negotiating',
     'Emailed':'replied',
     'Replied via Email':'prospect',
+    'WhatsApp Sent':'replied',
     'Bounced':'lost',
     'No Email':'cold',
     'Auto-Skipped':'cold'
@@ -1120,7 +1122,7 @@ function statusBadge(s) {
 
 function scoreHtml(score, leadId) {
   if (score == null) {
-    return `<button class="btn sm" style="font-size:11px; padding:3px 6px;" title="Generate AI Score" onclick="showAIAnalysis('${leadId}')">Score Now</button>`;
+    return `<span style="color:var(--muted); opacity:0.6;">—</span>`;
   }
   const fill = score>=70?'var(--teal)':score>=40?'var(--blue)':'var(--red)';
   return `<div class="score-wrap" style="cursor:pointer; padding: 4px; border-radius: 4px; display: inline-flex;" title="Click to view AI Analysis" onclick="showAIAnalysis('${leadId}')" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
@@ -1203,11 +1205,13 @@ function renderLeads() {
             if (!l.email) effectiveStatus = 'No Email';
             else if (l.emailValid === false) effectiveStatus = 'Bounced';
             else if (effectiveStatus === 'New' && l.emailSent) effectiveStatus = 'Emailed';
+            else if (effectiveStatus === 'New' && l.whatsappSent) effectiveStatus = 'WhatsApp Sent';
             
-            return ['New','Emailed','Replied via Email','Bounced','No Email','Auto-Skipped'].map(s=>{
-              let positiveActions = ['Emailed','Replied via Email','Auto-Skipped'];
+            return ['New','Emailed','Replied via Email','WhatsApp Sent','Bounced','No Email','Auto-Skipped'].map(s=>{
+              let positiveActions = ['Emailed','Replied via Email','WhatsApp Sent','Auto-Skipped'];
               let isHappened = positiveActions.includes(s) && (
                                (s === 'Emailed' && l.emailSent) || 
+                               (s === 'WhatsApp Sent' && l.whatsappSent) ||
                                (s === 'Auto-Skipped' && effectiveStatus === 'Auto-Skipped') ||
                                (l.statusHistory && l.statusHistory.includes(s)) || 
                                (s === effectiveStatus));
