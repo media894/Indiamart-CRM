@@ -10,6 +10,14 @@ function initializeWhatsApp() {
   console.log('[WhatsApp] Initializing...');
   status = 'CONNECTING';
 
+  // If there's an existing client, try to destroy it first to avoid memory leaks/multiple instances
+  if (client) {
+    try {
+      client.destroy();
+    } catch (e) {}
+    client = null;
+  }
+
   // Use a local folder in the workspace to persist sessions
   client = new Client({
     authStrategy: new LocalAuth({
@@ -100,6 +108,23 @@ async function disconnectWhatsApp() {
   }
 }
 
+async function handleCriticalFailure() {
+  if (status === 'DISCONNECTED') return; // Avoid duplicate failure handling
+  console.error('[WhatsApp] Critical browser crash or detachment detected. Destroying client and scheduled to reinitialize...');
+  status = 'DISCONNECTED';
+  qrCodeData = null;
+  if (client) {
+    try {
+      await client.destroy();
+    } catch (e) {
+      console.error('[WhatsApp] Error destroying client on critical failure:', e.message);
+    }
+    client = null;
+  }
+  // Re-initialize after a short delay
+  setTimeout(() => initializeWhatsApp(), 5000);
+}
+
 async function sendWhatsAppMessage(toPhone, messageText) {
   if (status !== 'CONNECTED' || !client) {
     throw new Error('WhatsApp client is not connected. Please scan the QR code first.');
@@ -116,8 +141,22 @@ async function sendWhatsAppMessage(toPhone, messageText) {
   }
 
   const chatId = cleanNumber + '@c.us';
-  const response = await client.sendMessage(chatId, messageText);
-  return response;
+  try {
+    const response = await client.sendMessage(chatId, messageText);
+    return response;
+  } catch (err) {
+    const errMsg = err.message || '';
+    if (
+      errMsg.includes('detached Frame') || 
+      errMsg.includes('Protocol error') || 
+      errMsg.includes('Execution context') || 
+      errMsg.includes('Session closed') ||
+      errMsg.includes('Target closed')
+    ) {
+      handleCriticalFailure().catch(e => console.error('[WhatsApp] Error handling critical failure:', e.message));
+    }
+    throw err;
+  }
 }
 
 module.exports = {
