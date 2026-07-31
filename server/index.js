@@ -345,13 +345,12 @@ function hasWhatsAppAutoResponseForLead(data, lead) {
 
   return (data.emails || []).some(msg => {
     if (msg.channel !== 'whatsapp') return false;
-    if (!msg.autoResponse) return false;
 
     const msgPhone = normalizePhone(msg.to);
     const isSamePhone = (msgPhone === phoneKey || msgPhone.endsWith(phoneKey) || phoneKey.endsWith(msgPhone));
     if (!isSamePhone) return false;
 
-    return msg.serviceKey === serviceKey;
+    return msg.serviceKey === serviceKey || (msg.subject && msg.subject.includes(serviceKey));
   });
 }
 async function loadSettings() {
