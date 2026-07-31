@@ -1,6 +1,7 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
+const fs = require('fs');
 
 let client = null;
 let qrCodeData = null;
@@ -81,10 +82,24 @@ function initializeWhatsApp() {
     client.initialize().catch(err => {
       console.error('[WhatsApp] Client initialization promise rejected:', err);
       status = 'DISCONNECTED';
+      // Auto-retry in 30 seconds
+      setTimeout(() => {
+        if (status === 'DISCONNECTED') {
+          console.log('[WhatsApp] Retrying client initialization...');
+          initializeWhatsApp();
+        }
+      }, 30000);
     });
   } catch (err) {
     console.error('[WhatsApp] Init error:', err);
     status = 'DISCONNECTED';
+    // Auto-retry in 30 seconds
+    setTimeout(() => {
+      if (status === 'DISCONNECTED') {
+        console.log('[WhatsApp] Retrying client initialization after throw...');
+        initializeWhatsApp();
+      }
+    }, 30000);
   }
 }
 
@@ -159,9 +174,40 @@ async function sendWhatsAppMessage(toPhone, messageText) {
   }
 }
 
+async function reconnectWhatsApp(clearSession = true) {
+  console.log(`[WhatsApp] Force reconnecting. Clear session: ${clearSession}`);
+  status = 'DISCONNECTED';
+  qrCodeData = null;
+
+  if (client) {
+    try {
+      await client.destroy();
+    } catch (e) {
+      console.error('[WhatsApp] Error destroying client on reconnect:', e.message);
+    }
+    client = null;
+  }
+
+  if (clearSession) {
+    const sessionPath = path.join(__dirname, '../.wwebjs_auth');
+    try {
+      if (fs.existsSync(sessionPath)) {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+        console.log('[WhatsApp] Deleted session auth folder successfully.');
+      }
+    } catch (err) {
+      console.error('[WhatsApp] Failed to delete session auth folder:', err.message);
+    }
+  }
+
+  // Restart client initialization after a short delay
+  setTimeout(() => initializeWhatsApp(), 1000);
+}
+
 module.exports = {
   initializeWhatsApp,
   getWhatsAppStatus,
   disconnectWhatsApp,
-  sendWhatsAppMessage
+  sendWhatsAppMessage,
+  reconnectWhatsApp
 };

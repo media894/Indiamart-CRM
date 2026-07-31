@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IndiaMART Lead CRM</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M3 8V16.5C3 17.33 3.67 18 4.5 18H19.5C20.33 18 21 17.33 21 16.5V8L12 13L3 8Z' fill='%23005A9C'/><path d='M21 7.5V7C21 6.17 20.33 5.5 19.5 5.5H4.5C3.67 5.5 3 6.17 3 7V7.5L12 12.5L21 7.5Z' fill='%23E13D3D'/><circle cx='12' cy='8.2' r='1.8' stroke='%23ffffff' stroke-width='0.8' opacity='0.9'/><path d='M12 6.4v3.6M10.2 8.2h3.6' stroke='%23ffffff' stroke-width='0.8' opacity='0.9'/></svg>">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root {
@@ -52,8 +53,8 @@ a { color: var(--purple); text-decoration: none; }
   -webkit-backdrop-filter: blur(20px);
 }
 .sidebar-logo{padding:20px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.sidebar-logo .logo-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--purple),#b45309);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(226,184,101,.35)}
-.sidebar-logo .logo-mark svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.2}
+.sidebar-logo .logo-mark{width:30px;height:30px;border-radius:8px;background:#ffffff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
+.sidebar-logo .logo-mark svg{width:20px;height:20px;display:block}
 .sidebar-logo h1{font-size:14.5px;font-weight:650;letter-spacing:-0.2px}
 .sidebar-logo p{font-size:11px;color:var(--muted);margin-top:1px}
 .sidebar-nav{padding:12px 8px;flex:1}
@@ -386,7 +387,7 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 <!-- Sidebar -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+    <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8V16.5C3 17.33 3.67 18 4.5 18H19.5C20.33 18 21 17.33 21 16.5V8L12 13L3 8Z" fill="#005A9C"/><path d="M21 7.5V7C21 6.17 20.33 5.5 19.5 5.5H4.5C3.67 5.5 3 6.17 3 7V7.5L12 12.5L21 7.5Z" fill="#E13D3D"/><circle cx="12" cy="8.2" r="1.8" stroke="#ffffff" stroke-width="0.8" opacity="0.9"/><path d="M12 6.4v3.6M10.2 8.2h3.6" stroke="#ffffff" stroke-width="0.8" opacity="0.9"/></svg></div>
     <div>
       <h1>IndiaMART CRM</h1>
       <p>Lead qualification hub</p>
@@ -625,6 +626,9 @@ tr:hover td{background:rgba(255,255,255,0.03)}
       <!-- Action button (disconnect) -->
       <button class="btn danger" id="wa-disconnect-btn" style="display:none;" onclick="disconnectWhatsAppClient()">
         Disconnect WhatsApp
+      </button>
+      <button class="btn primary" id="wa-reconnect-btn" style="margin-top: 8px;" onclick="reconnectWhatsAppClient()">
+        Reconnect / Reset QR
       </button>
     </div>
 
@@ -884,6 +888,30 @@ async function disconnectWhatsAppClient() {
     checkWhatsAppStatus();
   } catch (err) {
     toast('Failed to disconnect WhatsApp', 'error');
+  }
+}
+
+async function reconnectWhatsAppClient() {
+  if (!confirm('Are you sure you want to reconnect and reset the WhatsApp session? This will force clear the current connection and generate a new QR code.')) return;
+  const btn = document.getElementById('wa-reconnect-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`${API}/whatsapp/reconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clearSession: true })
+    }).then(res => res.json());
+
+    if (r.ok) {
+      toast('Resetting WhatsApp session...', 'info');
+      setTimeout(() => checkWhatsAppStatus(), 2000);
+    } else {
+      toast(r.error || 'Failed to reconnect WhatsApp', 'error');
+    }
+  } catch (err) {
+    toast('Failed to reconnect WhatsApp: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 

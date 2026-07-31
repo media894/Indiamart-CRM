@@ -11,7 +11,7 @@ const imaps = require('imap-simple');
 const simpleParser = require('mailparser').simpleParser;
 const xlsx = require('xlsx');
 const { MongoClient } = require('mongodb');
-const { initializeWhatsApp, getWhatsAppStatus, disconnectWhatsApp, sendWhatsAppMessage } = require('./whatsapp');
+const { initializeWhatsApp, getWhatsAppStatus, disconnectWhatsApp, sendWhatsAppMessage, reconnectWhatsApp } = require('./whatsapp');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -337,6 +337,23 @@ function hasAutoResponseForLead(data, lead) {
     return emailServiceKey === serviceKey;
   });
 }
+function hasWhatsAppAutoResponseForLead(data, lead) {
+  const phoneKey = normalizePhone(lead.phone);
+  if (!phoneKey) return true;
+
+  const serviceKey = getLeadServiceKey(lead);
+
+  return (data.emails || []).some(msg => {
+    if (msg.channel !== 'whatsapp') return false;
+    if (!msg.autoResponse) return false;
+
+    const msgPhone = normalizePhone(msg.to);
+    const isSamePhone = (msgPhone === phoneKey || msgPhone.endsWith(phoneKey) || phoneKey.endsWith(msgPhone));
+    if (!isSamePhone) return false;
+
+    return msg.serviceKey === serviceKey;
+  });
+}
 async function loadSettings() {
   let s = {};
   if (!db) {
@@ -369,7 +386,7 @@ async function loadSettings() {
   if (!s.autoResponseBody) s.autoResponseBody = 'Hi {{name}},\n\nThank you for your enquiry about {{product}}.\n\nWe will get back to you shortly.\n\nBest regards';
   if (!s.whatsappTemplates) {
     s.whatsappTemplates = {
-      default: "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}. Kindly please share more details about your requirements. Let me know the suitable time to talk to you."
+      default: "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}.\n\nKindly please share more details about your requirements. Let me know the suitable time to talk to you."
     };
   }
 
@@ -1624,6 +1641,165 @@ async function processPendingAutoResponses(settings) {
   }
 }
 
+async function triggerWhatsAppAutoResponse(lead, settings) {
+  const phoneKey = normalizePhone(lead.phone);
+  if (!phoneKey) {
+    console.log(`[WhatsAppAutoResponse] Skipped for ${lead.name} - no phone number.`);
+    return { skipped: true, reason: 'no_phone' };
+  }
+
+  const freshData = await loadData();
+  if (hasWhatsAppAutoResponseForLead(freshData, lead)) {
+    console.log(`[WhatsAppAutoResponse] Skipped for ${lead.name} - WhatsApp autoresponse already exists.`);
+    return { skipped: true, reason: 'already_sent' };
+  }
+
+  // Check if WhatsApp client is connected
+  const waStatus = getWhatsAppStatus();
+  if (waStatus.status !== 'CONNECTED') {
+    console.log(`[WhatsAppAutoResponse] Skipped for ${lead.name} - WhatsApp client is not connected.`);
+    return { skipped: true, reason: 'whatsapp_not_connected' };
+  }
+
+  const serviceKey = getLeadServiceKey(lead);
+  
+  // Get template text based on service
+  let templateText = settings.whatsappTemplates?.[serviceKey] || settings.whatsappTemplates?.default || '';
+  if (!templateText) {
+    templateText = "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}.\n\nKindly please share more details about your requirements. Let me know the suitable time to talk to you.";
+  }
+
+  // Personalize message
+  const serviceSubjectMap = {
+    tshirtembroidery: 'T Shirt Embroidery Services',
+    tshirtprinting: 'T Shirt Printing Services',
+    embroidery: 'Embroidery Digitizing Services',
+    dataentry: 'Data Entry Services',
+    livechat: 'Live Chat Support Services',
+    imageediting: 'Image Editing Services',
+    emailmarketing: 'Email Marketing Services',
+    vector: 'Vector Artwork Services',
+    aiml: 'AI & Machine Learning Services',
+    graphic: 'Graphic Design Services'
+  };
+  const standardService = serviceSubjectMap[serviceKey] || 'Graphic Design Services';
+  const firstName = getGreetingName(lead);
+  const product = lead.product || standardService;
+  const company = lead.company || '';
+  const messageText = templateText
+    .replace(/\{\{\s*name\s*\}\}/gi, firstName)
+    .replace(/\{\{\s*product\s*\}\}/gi, product)
+    .replace(/\{\{\s*company\s*\}\}/gi, company);
+
+  const messageParts = messageText.split(/\n\n+/).map(m => m.trim()).filter(m => m.length > 0);
+
+  try {
+    for (let i = 0; i < messageParts.length; i++) {
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
+      await sendWhatsAppMessage(lead.phone, messageParts[i]);
+    }
+    
+    // Log the message to the activity stream
+    pushActivity('whatsapp_sent', 
+      `🟢 Auto WhatsApp Sent — ${lead.name || lead.phone}`, 
+      `Service: ${serviceKey} | Msg: ${messageText.slice(0, 60)}...`,
+      { leadId: lead.id, phone: lead.phone, service: serviceKey }
+    );
+
+    // Save as outbound email/message record in database so it is visible in chat history
+    const d = await loadData();
+    if (!d.emails) d.emails = [];
+    d.emails.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      leadId: lead.id,
+      to: lead.phone + ' (WhatsApp)',
+      subject: `WhatsApp Auto: ${serviceKey} template`,
+      body: messageText,
+      direction: 'sent',
+      sentAt: new Date().toISOString(),
+      channel: 'whatsapp',
+      serviceKey,
+      autoResponse: true
+    });
+    
+    // Update lead status to WhatsApp Sent
+    const leadIdx = d.leads.findIndex(l => l.id === lead.id);
+    if (leadIdx !== -1) {
+      if (!d.leads[leadIdx].statusHistory) {
+        d.leads[leadIdx].statusHistory = [d.leads[leadIdx].clientStatus || 'New'];
+      }
+      if (!d.leads[leadIdx].statusHistory.includes('WhatsApp Sent')) {
+        d.leads[leadIdx].statusHistory.push('WhatsApp Sent');
+      }
+      d.leads[leadIdx].clientStatus = 'WhatsApp Sent';
+      d.leads[leadIdx].whatsappSent = true;
+      d.leads[leadIdx].lastWhatsappSentAt = new Date().toISOString();
+      d.leads[leadIdx].updatedAt = new Date().toISOString();
+    }
+    await saveData(d);
+    console.log(`[WhatsAppAutoResponse] ✅ Auto WhatsApp sent successfully to ${lead.phone}`);
+    return { ok: true };
+  } catch (err) {
+    console.error(`[WhatsAppAutoResponse] ❌ Failed to send to ${lead.phone}:`, err.message);
+    pushActivity('whatsapp_failed',
+      `❌ Auto WhatsApp Failed — ${lead.name || lead.phone}`,
+      `Error: ${err.message}`,
+      { leadId: lead.id, phone: lead.phone }
+    );
+    throw err;
+  }
+}
+
+async function processPendingWhatsAppAutoResponses(settings) {
+  if (!settings.autoResponseEnabled) return;
+
+  const data = await loadData();
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+
+  // Check if WhatsApp is connected
+  const waStatus = getWhatsAppStatus();
+  if (waStatus.status !== 'CONNECTED') {
+    return;
+  }
+
+  const pendingLeads = (data.leads || []).filter(lead => {
+    if (lead.queryType !== 'BL') return false;
+    if (!lead.phone) return false;
+    
+    const createdTime = lead.createdAt || lead.updatedAt;
+    if (!createdTime || createdTime < twelveHoursAgo) return false;
+
+    const alreadyWhatsApped = hasWhatsAppAutoResponseForLead(data, lead);
+    return !alreadyWhatsApped;
+  });
+
+  if (pendingLeads.length > 0) {
+    console.log(`[PendingWhatsAppAutoResponse] Found ${pendingLeads.length} leads requiring WhatsApp autoresponse.`);
+    for (let i = 0; i < pendingLeads.length; i++) {
+      const lead = pendingLeads[i];
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 10000)); // 10s delay between leads
+      }
+
+      const currentSettings = await loadSettings();
+      if (!currentSettings.autoResponseEnabled) break;
+
+      const currentWaStatus = getWhatsAppStatus();
+      if (currentWaStatus.status !== 'CONNECTED') {
+        console.log(`[PendingWhatsAppAutoResponse] WhatsApp disconnected, stopping queue.`);
+        break;
+      }
+
+      try {
+        await triggerWhatsAppAutoResponse(lead, currentSettings);
+        console.log(`[PendingWhatsAppAutoResponse] ✅ Sent WhatsApp autoresponse to ${lead.phone}`);
+      } catch (e) {
+        console.error(`[PendingWhatsAppAutoResponse] ❌ Failed to send to ${lead.phone}:`, e.message);
+      }
+    }
+  }
+}
+
 async function syncImapReplies() {
   if (imapSyncInProgress) {
     console.log('[IMAP Sync] Already running. Skipping overlapping sync.');
@@ -1806,6 +1982,12 @@ app.post('/api/whatsapp/disconnect', async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/whatsapp/reconnect', async (req, res) => {
+  const { clearSession } = req.body;
+  await reconnectWhatsApp(clearSession !== false);
+  res.json({ ok: true });
+});
+
 app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) => {
   const { leadId } = req.body;
   if (!leadId) return res.status(400).json({ error: 'leadId is required' });
@@ -1821,7 +2003,7 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
   // Get template text based on service
   let templateText = settings.whatsappTemplates?.[serviceKey] || settings.whatsappTemplates?.default || '';
   if (!templateText) {
-    templateText = "Hi {{name}},\n\nThank you for your inquiry about {{product}}.\n\nBest regards,\nODD INFOTECH";
+    templateText = "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}.\n\nKindly please share more details about your requirements. Let me know the suitable time to talk to you.";
   }
 
   // Personalize message
@@ -1846,8 +2028,13 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
     .replace(/\{\{\s*product\s*\}\}/gi, product)
     .replace(/\{\{\s*company\s*\}\}/gi, company);
 
+  const messageParts = messageText.split(/\n\n+/).map(m => m.trim()).filter(m => m.length > 0);
+
   try {
-    await sendWhatsAppMessage(lead.phone, messageText);
+    for (let i = 0; i < messageParts.length; i++) {
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
+      await sendWhatsAppMessage(lead.phone, messageParts[i]);
+    }
     
     // Log the message to the activity stream
     pushActivity('whatsapp_sent', 
@@ -1907,19 +2094,15 @@ app.post('/api/automation/:mode', async (req, res) => {
     setTimeout(async () => {
       try {
         console.log('[Automation] Turned ON - fetching pending IndiaMART leads now...');
-        const r = await fetch(`http://localhost:${PORT}/api/indiamart/leads`);
-        const result = await r.json();
-        if (result.ok) {
-          console.log(`[Automation] Pending lead sync complete. Added ${result.added} new leads.`);
-        } else {
-          console.log(`[Automation] Pending lead sync issue: ${result.error || 'unknown'}`);
-        }
+        const result = await executeIndiaMartSync(next);
+        console.log(`[Automation] Pending lead sync complete. Added ${result.added} new leads.`);
       } catch (e) {
-        console.log(`[Automation] Pending lead sync failed: ${e.message}`);
+        console.log('[Automation] Pending lead sync failed:', e.message);
       }
       try {
         console.log('[Automation] Processing pending autoresponses for existing leads...');
         await processPendingAutoResponses(next);
+        await processPendingWhatsAppAutoResponses(next);
       } catch (e) {
         console.log('[Automation] Failed to process pending autoresponses:', e.message);
       }
@@ -1938,13 +2121,12 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   res.json({ ok: true, path: `/assets/${name}`, name });
 });
 
-app.get('/api/indiamart/leads', async (req, res) => {
-  const settings = await loadSettings();
+async function executeIndiaMartSync(settings) {
   if (!await isAutomationEnabled(settings)) {
-    return res.status(423).json({ error: 'Webapp is OFF. Turn ON to fetch IndiaMART leads.', automationOff: true });
+    throw new Error('Webapp is OFF. Turn ON to fetch IndiaMART leads.');
   }
   const apiKey = settings.indiamartApiKey;
-  if (!apiKey) return res.status(400).json({ error: 'IndiaMART API key not configured' });
+  if (!apiKey) throw new Error('IndiaMART API key not configured');
 
   // IndiaMART CRM API v2 expects: DD-MMM-YYYY HH:MM:SS  e.g. 01-Jun-2026 00:00:00
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1970,155 +2152,192 @@ app.get('/api/indiamart/leads', async (req, res) => {
 
   const url = `https://mapi.indiamart.com/wservce/crm/crmListing/v2/?glusr_crm_key=${apiKey}&start_time=${encodeURIComponent(fmt(start))}&end_time=${encodeURIComponent(fmt(end))}`;
   console.log('[IndiaMART] Fetching:', url);
-  try {
-    const imRes = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    const text = await imRes.text();
-    console.log('[IndiaMART] Raw response (first 500):', text.slice(0, 500));
-    let json;
-    try { json = JSON.parse(text); } catch { return res.status(502).json({ error: 'Bad response from IndiaMART', raw: text.slice(0, 500) }); }
+  
+  const imRes = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  const text = await imRes.text();
+  console.log('[IndiaMART] Raw response (first 500):', text.slice(0, 500));
+  let json;
+  try { json = JSON.parse(text); } catch { throw new Error('Bad response from IndiaMART: ' + text.slice(0, 500)); }
 
-    if (Number(json.CODE) === 429) {
-      return res.status(429).json({
-        error: json.MESSAGE || 'IndiaMART API limit reached. Please wait 5 minutes and try again.',
-        raw: json
-      });
-    }
+  if (Number(json.CODE) === 429) {
+    throw new Error(json.MESSAGE || 'IndiaMART API limit reached. Please wait 5 minutes and try again.');
+  }
 
-    if (json.STATUS === 'Error' || json.STATUS === 'FAILURE' || json.CODE === 'error') {
-      return res.status(502).json({ error: json.MESSAGE || json.message || 'IndiaMART API error', raw: json });
-    }
+  if (json.STATUS === 'Error' || json.STATUS === 'FAILURE' || json.CODE === 'error') {
+    throw new Error(json.MESSAGE || json.message || 'IndiaMART API error');
+  }
 
-    const existing = new Set(data.leads.map(l => l.indiamartId).filter(Boolean));
-    const queuedAutoResponses = [];
-    let added = 0;
+  const existing = new Set(data.leads.map(l => l.indiamartId).filter(Boolean));
+  const queuedAutoResponses = [];
+  const queuedWhatsAppAutoResponses = [];
+  let added = 0;
 
-    const rawLeads = json.RESPONSE || json.response || json.DATA || json.data || json.leads || (Array.isArray(json) ? json : []);
-    const fetchedIndiaMartIds = new Set();
-    for (const l of rawLeads) {
-      const imId = String(l.UNIQUE_QUERY_ID || l.unique_query_id || l.QUERY_ID || '');
-      const leadEmail = l.SENDER_EMAIL || l.sender_email || '';
-      const leadPhone = l.SENDER_MOBILE || l.sender_mobile || l.SENDER_PHONE || l.sender_phone || '';
-      if (imId) fetchedIndiaMartIds.add(imId);
-      const duplicateByIndiaMartId = imId && existing.has(imId);
-      if (duplicateByIndiaMartId) continue;
+  const rawLeads = json.RESPONSE || json.response || json.DATA || json.data || json.leads || (Array.isArray(json) ? json : []);
+  const fetchedIndiaMartIds = new Set();
+  for (const l of rawLeads) {
+    const imId = String(l.UNIQUE_QUERY_ID || l.unique_query_id || l.QUERY_ID || '');
+    const leadEmail = l.SENDER_EMAIL || l.sender_email || '';
+    const leadPhone = l.SENDER_MOBILE || l.sender_mobile || l.SENDER_PHONE || l.sender_phone || '';
+    if (imId) fetchedIndiaMartIds.add(imId);
+    const duplicateByIndiaMartId = imId && existing.has(imId);
+    if (duplicateByIndiaMartId) continue;
 
-      const emailVal = await validateEmail(leadEmail);
-      const phoneVal = await validatePhone(
-        leadPhone,
-        settings.numverifyKey,
-        l.SENDER_CITY || l.sender_city || '',
-        l.SENDER_STATE || l.sender_state || ''
-      );
+    const emailVal = await validateEmail(leadEmail);
+    const phoneVal = await validatePhone(
+      leadPhone,
+      settings.numverifyKey,
+      l.SENDER_CITY || l.sender_city || '',
+      l.SENDER_STATE || l.sender_state || ''
+    );
 
-      const rawMessage = l.QUERY_MESSAGE || l.query_message || '';
-      
-      let qType = l.QUERY_TYPE || l.query_type || '';
-      if (!qType) {
-        if (rawMessage.toLowerCase().includes('buyer searched for') || rawMessage.toLowerCase().includes('requirement for')) {
-          qType = 'BL';
-        } else {
-          qType = 'W';
-        }
+    const rawMessage = l.QUERY_MESSAGE || l.query_message || '';
+    
+    let qType = l.QUERY_TYPE || l.query_type || '';
+    if (!qType) {
+      if (rawMessage.toLowerCase().includes('buyer searched for') || rawMessage.toLowerCase().includes('requirement for')) {
+        qType = 'BL';
+      } else {
+        qType = 'W';
       }
-      if (qType === 'B') qType = 'BL';
+    }
+    if (qType === 'B') qType = 'BL';
 
-      const lead = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-        indiamartId: imId,
-        source: 'IndiaMART',
-        queryType: qType,
-        name: l.SENDER_NAME || l.sender_name || 'Unknown',
-        company: l.SENDER_COMPANY || l.sender_company || '',
-        email: leadEmail,
-        phone: leadPhone,
-        city: l.SENDER_CITY || l.sender_city || '',
-        state: l.SENDER_STATE || l.sender_state || '',
-        product: l.QUERY_PRODUCT_NAME || l.query_product_name || '',
-        message: rawMessage,
-        status: 'New',
-        clientStatus: 'New',
-        score: null,
-        aiSummary: null,
-        emailValid: emailVal.valid,
-        emailReason: emailVal.reason,
-        phoneValid: phoneVal.valid,
-        phoneLocation: phoneVal.location,
-        phoneCarrier: phoneVal.carrier,
-        phoneLineType: phoneVal.lineType,
-        phoneStatus: phoneVal.phoneStatus,
-        phoneOwner: phoneVal.phoneOwner || null,
-        createdAt: l.QUERY_TIME || l.query_time || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    const lead = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      indiamartId: imId,
+      source: 'IndiaMART',
+      queryType: qType,
+      name: l.SENDER_NAME || l.sender_name || 'Unknown',
+      company: l.SENDER_COMPANY || l.sender_company || '',
+      email: leadEmail,
+      phone: leadPhone,
+      city: l.SENDER_CITY || l.sender_city || '',
+      state: l.SENDER_STATE || l.sender_state || '',
+      product: l.QUERY_PRODUCT_NAME || l.query_product_name || '',
+      message: rawMessage,
+      status: 'New',
+      clientStatus: 'New',
+      score: null,
+      aiSummary: null,
+      emailValid: emailVal.valid,
+      emailReason: emailVal.reason,
+      phoneValid: phoneVal.valid,
+      phoneLocation: phoneVal.location,
+      phoneCarrier: phoneVal.carrier,
+      phoneLineType: phoneVal.lineType,
+      phoneStatus: phoneVal.phoneStatus,
+      phoneOwner: phoneVal.phoneOwner || null,
+      createdAt: l.QUERY_TIME || l.query_time || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-      const alreadyEmailed = hasAutoResponseForLead(data, lead);
+    const alreadyEmailed = hasAutoResponseForLead(data, lead);
+    if (alreadyEmailed) {
+      lead.clientStatus = 'Auto-Skipped';
+    }
+
+    data.leads.unshift(lead);
+    if (imId) existing.add(imId);
+    added++;
+
+    // 🔔 Push live activity event for new lead
+    pushActivity('new_lead',
+      `🆕 New Lead — ${lead.name || 'Unknown'}`,
+      `${lead.product || 'No product'} | ${lead.email || ''} | ${lead.city || ''}`,
+      { leadId: lead.id, email: lead.email, product: lead.product, city: lead.city }
+    );
+
+    // Trigger Auto-responder
+    const phoneOk = true;
+    if (settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk && !alreadyEmailed) {
+      queuedAutoResponses.push(lead);
+    } else if (settings.autoResponseEnabled) {
       if (alreadyEmailed) {
-        lead.clientStatus = 'Auto-Skipped';
-      }
-
-      data.leads.unshift(lead);
-      if (imId) existing.add(imId);
-      added++;
-
-      // 🔔 Push live activity event for new lead
-      pushActivity('new_lead',
-        `🆕 New Lead — ${lead.name || 'Unknown'}`,
-        `${lead.product || 'No product'} | ${lead.email || ''} | ${lead.city || ''}`,
-        { leadId: lead.id, email: lead.email, product: lead.product, city: lead.city }
-      );
-
-      // Trigger Auto-responder if email is valid. Phone check relaxed — IndiaMART leads already filtered, format check enough.
-      const phoneOk = true; // Always send if email is valid (IndiaMART leads are pre-verified by IndiaMART)
-      if (settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk && !alreadyEmailed) {
-        queuedAutoResponses.push(lead);
-      } else if (settings.autoResponseEnabled) {
-        if (alreadyEmailed) {
-          console.log(`[AutoResponse] Skipped for ${lead.name} — Mail already sent for this service`);
-        } else {
-          console.log(`[AutoResponse] Skipped for ${lead.name} — phone valid: ${phoneVal.valid}, email valid: ${emailVal.valid}`);
-        }
+        console.log(`[AutoResponse] Skipped for ${lead.name} — Mail already sent for this service`);
+      } else {
+        console.log(`[AutoResponse] Skipped for ${lead.name} — phone valid: ${phoneVal.valid}, email valid: ${emailVal.valid}`);
       }
     }
-
-    // ✅ Only newly added leads in THIS sync get auto-response (not old existing leads)
-    data.lastSyncTime = new Date().toISOString();
-    await saveData(data);
-
-    // Send auto-responses sequentially with delay to avoid Gmail rate limit block
-    if (queuedAutoResponses.length > 0) {
-      console.log(`[AutoResponse] Queuing ${queuedAutoResponses.length} emails with ${AUTO_EMAIL_DELAY_MS / 1000}s delay between each...`);
-      (async () => {
-        for (let i = 0; i < queuedAutoResponses.length; i++) {
-          const lead = queuedAutoResponses[i];
-          const now = Date.now();
-          const timeSinceLast = now - lastAutoEmailSentAt;
-          if (lastAutoEmailSentAt > 0 && timeSinceLast < AUTO_EMAIL_DELAY_MS) {
-            const waitMs = AUTO_EMAIL_DELAY_MS - timeSinceLast;
-            console.log(`[AutoResponse] Waiting ${Math.round(waitMs / 1000)}s before sending to ${lead.email}...`);
-            await new Promise(resolve => setTimeout(resolve, waitMs));
-          }
-          // Dynamic check to support immediate cutoff when OFF is clicked
-          const currentSettings = await loadSettings();
-          if (currentSettings.indiamartSyncEnabled === false || currentSettings.autoResponseEnabled === false || !await isAutomationEnabled(currentSettings)) {
-            console.log(`[AutoResponse] Webapp is OFF. Aborting sending autoresponse to ${lead.email}.`);
-            break;
-          }
-          try {
-            await triggerAutoResponse(lead, settings, data);
-            lastAutoEmailSentAt = Date.now();
-            console.log(`[AutoResponse] ✅ Sent ${i + 1}/${queuedAutoResponses.length} to ${lead.email}`);
-          } catch (e) {
-            console.error(`[AutoResponse] ❌ Failed for ${lead.email}:`, e.message);
-          }
-        }
-        console.log(`[AutoResponse] All ${queuedAutoResponses.length} emails processed.`);
-      })().catch(e => console.error('[AutoResponse] Queue error:', e));
+    
+    if (settings.autoResponseEnabled && lead.queryType === 'BL' && lead.phone && !hasWhatsAppAutoResponseForLead(data, lead)) {
+      queuedWhatsAppAutoResponses.push(lead);
     }
+  }
 
-    res.json({ ok: true, added, total: rawLeads.length, leads: data.leads });
+  data.lastSyncTime = new Date().toISOString();
+  await saveData(data);
+
+  // Send auto-responses sequentially
+  if (queuedAutoResponses.length > 0) {
+    console.log(`[AutoResponse] Queuing ${queuedAutoResponses.length} emails with ${AUTO_EMAIL_DELAY_MS / 1000}s delay...`);
+    (async () => {
+      for (let i = 0; i < queuedAutoResponses.length; i++) {
+        const lead = queuedAutoResponses[i];
+        const now = Date.now();
+        const timeSinceLast = now - lastAutoEmailSentAt;
+        if (lastAutoEmailSentAt > 0 && timeSinceLast < AUTO_EMAIL_DELAY_MS) {
+          const waitMs = AUTO_EMAIL_DELAY_MS - timeSinceLast;
+          console.log(`[AutoResponse] Waiting ${Math.round(waitMs / 1000)}s before sending to ${lead.email}...`);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+        const currentSettings = await loadSettings();
+        if (currentSettings.indiamartSyncEnabled === false || currentSettings.autoResponseEnabled === false || !await isAutomationEnabled(currentSettings)) {
+          console.log(`[AutoResponse] Webapp is OFF. Aborting sending autoresponse to ${lead.email}.`);
+          break;
+        }
+        try {
+          await triggerAutoResponse(lead, settings, data);
+          lastAutoEmailSentAt = Date.now();
+          console.log(`[AutoResponse] ✅ Sent ${i + 1}/${queuedAutoResponses.length} to ${lead.email}`);
+        } catch (e) {
+          console.error(`[AutoResponse] ❌ Failed for ${lead.email}:`, e.message);
+        }
+      }
+      console.log(`[AutoResponse] All ${queuedAutoResponses.length} emails processed.`);
+    })().catch(e => console.error('[AutoResponse] Queue error:', e));
+  }
+
+  let lastAutoWhatsappSentAt = 0;
+  const AUTO_WHATSAPP_DELAY_MS = 10000;
+  if (queuedWhatsAppAutoResponses.length > 0) {
+    console.log(`[WhatsAppAutoResponse] Queuing ${queuedWhatsAppAutoResponses.length} WhatsApp messages with ${AUTO_WHATSAPP_DELAY_MS / 1000}s delay...`);
+    (async () => {
+      for (let i = 0; i < queuedWhatsAppAutoResponses.length; i++) {
+        const lead = queuedWhatsAppAutoResponses[i];
+        const now = Date.now();
+        const timeSinceLast = now - lastAutoWhatsappSentAt;
+        if (lastAutoWhatsappSentAt > 0 && timeSinceLast < AUTO_WHATSAPP_DELAY_MS) {
+          const waitMs = AUTO_WHATSAPP_DELAY_MS - timeSinceLast;
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+        const currentSettings = await loadSettings();
+        if (currentSettings.indiamartSyncEnabled === false || currentSettings.autoResponseEnabled === false || !await isAutomationEnabled(currentSettings)) {
+          console.log(`[WhatsAppAutoResponse] Webapp is OFF. Aborting sending WhatsApp autoresponse to ${lead.phone}.`);
+          break;
+        }
+        try {
+          await triggerWhatsAppAutoResponse(lead, settings);
+          lastAutoWhatsappSentAt = Date.now();
+        } catch (e) {
+          console.error(`[WhatsAppAutoResponse] ❌ Failed for ${lead.phone}:`, e.message);
+        }
+      }
+      console.log(`[WhatsAppAutoResponse] All ${queuedWhatsAppAutoResponses.length} WhatsApp messages processed.`);
+    })().catch(e => console.error('[WhatsAppAutoResponse] Queue error:', e));
+  }
+
+  return { added, total: rawLeads.length, leads: data.leads };
+}
+
+app.get('/api/indiamart/leads', async (req, res) => {
+  try {
+    const settings = await loadSettings();
+    const result = await executeIndiaMartSync(settings);
+    res.json({ ok: true, ...result });
   } catch (err) {
     console.error('[IndiaMART] Error:', err);
-    res.status(500).json({ error: err.message });
+    const isClientError = err.message.includes('Webapp is OFF') || err.message.includes('not configured');
+    res.status(isClientError ? (err.message.includes('Webapp is OFF') ? 423 : 400) : 500).json({ error: err.message });
   }
 });
 
@@ -2198,6 +2417,14 @@ app.post('/api/leads', async (req, res) => {
     console.log(`[AutoResponse] Skipped for manual lead ${lead.name} - contact already exists.`);
   } else if (settings.autoResponseEnabled) {
     console.log(`[AutoResponse] Skipped for manual lead ${lead.name} — phone valid: ${phoneVal.valid}, email valid: ${emailVal.valid}`);
+  }
+
+  // Trigger WhatsApp Auto-responder for manual leads if Buy Lead (BL) and phone exists
+  if (!alreadyExists && settings.autoResponseEnabled && lead.queryType === 'BL' && lead.phone) {
+    console.log(`[WhatsAppAutoResponse] Triggering for manual lead ${lead.name} in background...`);
+    setTimeout(() => {
+      triggerWhatsAppAutoResponse(lead, settings).catch(e => console.error('[WhatsAppAutoResponse] Manual lead error:', e));
+    }, 5000);
   }
 
   // Background Caller Name Lookup so it doesn't block UI
@@ -2319,6 +2546,7 @@ async function runBackgroundSync() {
   // Process any pending autoresponses for leads that arrived while automation was OFF
   try {
     await processPendingAutoResponses(settings);
+    await processPendingWhatsAppAutoResponses(settings);
   } catch (err) {
     console.error('[AutoSync] Error processing pending autoresponses:', err.message);
   }
@@ -2326,13 +2554,8 @@ async function runBackgroundSync() {
   if (settings.indiamartApiKey) {
     console.log('[AutoSync] Running background IndiaMART sync...');
     try {
-      const r = await fetch(`http://localhost:${PORT}/api/indiamart/leads`);
-      const result = await r.json();
-      if (result.ok) {
-        console.log(`[AutoSync] IndiaMART sync successful. Added ${result.added} new leads.`);
-      } else {
-        console.log(`[AutoSync] IndiaMART sync issue: ${result.error || 'unknown'}`);
-      }
+      const result = await executeIndiaMartSync(settings);
+      console.log(`[AutoSync] IndiaMART sync successful. Added ${result.added} new leads.`);
     } catch (e) {
       console.log(`[AutoSync] IndiaMART sync failed: ${e.message}`);
     }
@@ -2960,7 +3183,7 @@ app.get('/api/activity', (req, res) => {
     console.log('⚠️ MONGODB_URI not set. Running in local file fallback mode.');
   }
   app.listen(PORT, () => {
-    console.log(`\n🚀  IndiaMART CRM running at http://localhost:${PORT}\n`);
+    console.log(`\n🚀  IndiaMART CRM running on port ${PORT}\n`);
     initializeWhatsApp();
   });
 })();
