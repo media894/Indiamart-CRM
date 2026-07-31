@@ -160,6 +160,20 @@ async function sendWhatsAppMessage(toPhone, messageText) {
   }
 
   const chatId = cleanNumber + '@c.us';
+
+  // Check if number is registered on WhatsApp first to avoid internal getChat crash
+  try {
+    const isRegistered = await client.isRegisteredUser(chatId);
+    if (!isRegistered) {
+      throw new Error('This phone number is not registered on WhatsApp.');
+    }
+  } catch (e) {
+    if (e.message.includes('not registered')) {
+      throw e;
+    }
+    console.warn('[WhatsApp] Registration check failed or skipped:', e.message);
+  }
+
   try {
     const response = await client.sendMessage(chatId, messageText);
     return response;
