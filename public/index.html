@@ -2114,24 +2114,6 @@ async function init() {
 // ─── Notification System ──────────────────────────────────────────────────────
 function setupNotificationBell() {
   document.querySelectorAll('.topbar').forEach(topbar => {
-    if (!topbar.querySelector('.odd-brand-btn')) {
-      const brandBtn = document.createElement('a');
-      brandBtn.href = 'https://oddinfotech.com/';
-      brandBtn.target = '_blank';
-      brandBtn.rel = 'noopener noreferrer';
-      brandBtn.className = 'odd-brand-btn';
-      brandBtn.title = 'Visit Odd Infotech Website (https://oddinfotech.com/)';
-      brandBtn.style.cssText = 'display:inline-flex; align-items:center; text-decoration:none; margin-left:8px; flex-shrink:0; cursor:pointer; vertical-align:middle;';
-      brandBtn.innerHTML = `
-        <img src="/assets/oddinfotech_logo.png" alt="Odd Infotech Logo" style="height:36px; width:auto; max-width:160px; object-fit:contain; background:#ffffff; border-radius:6px; padding:2px 6px; box-shadow:0 2px 8px rgba(0,0,0,0.3); display:block;" />
-      `;
-      const actionGroup = topbar.querySelector('div:last-child');
-      if (actionGroup && actionGroup !== topbar.firstElementChild) {
-        actionGroup.appendChild(brandBtn);
-      } else {
-        topbar.appendChild(brandBtn);
-      }
-    }
     if (topbar.querySelector('.notif-bell-container')) return;
     const bell = document.createElement('div');
     bell.className = 'notif-bell-container';
