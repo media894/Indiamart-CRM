@@ -921,6 +921,20 @@ function getGraphicDesignServiceType(lead) {
   return 'graphic';
 }
 
+function getLeadPdfPath(lead) {
+  const serviceKey = getGraphicDesignServiceType(lead);
+  const pdfDir = path.join(__dirname, 'pdfs');
+  
+  if (serviceKey === 'logo') {
+    return path.join(pdfDir, 'Logo Portfolio.pdf');
+  } else if (serviceKey === 'image_editing') {
+    return path.join(pdfDir, 'Image Editing Services Portfolio.pdf');
+  } else if (['brochure', 'catalogue', 'flyer', 'banner', 'graphic'].includes(serviceKey)) {
+    return path.join(pdfDir, 'Graphic Designing Portfolio.pdf');
+  }
+  return null;
+}
+
 function getGraphicDesignEmailBody(lead) {
   const serviceType = getGraphicDesignServiceType(lead);
   const productName = (lead.product && String(lead.product).trim() !== '') ? String(lead.product).trim() : 'Graphic Design Services';
@@ -1696,6 +1710,18 @@ async function triggerWhatsAppAutoResponse(lead, settings) {
     for (let i = 0; i < messageParts.length; i++) {
       if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
       await sendWhatsAppMessage(lead.phone, messageParts[i]);
+    }
+    
+    // Check if matching PDF exists for lead service and send it
+    const pdfPath = getLeadPdfPath(lead);
+    if (pdfPath && fs.existsSync(pdfPath)) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay before media
+        await sendWhatsAppMedia(lead.phone, pdfPath);
+        console.log(`[WhatsAppAutoResponse] 📄 Sent PDF portfolio (${path.basename(pdfPath)}) to ${lead.phone}`);
+      } catch (pdfErr) {
+        console.error(`[WhatsAppAutoResponse] ⚠️ Failed to send PDF (${path.basename(pdfPath)}) to ${lead.phone}:`, pdfErr.message);
+      }
     }
     
     // Log the message to the activity stream
