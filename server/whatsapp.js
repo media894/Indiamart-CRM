@@ -252,6 +252,30 @@ async function reconnectWhatsApp(clearSession = true) {
   setTimeout(() => initializeWhatsApp(), 1000);
 }
 
+async function sendWhatsAppMedia(toPhone, mediaPath, caption = '') {
+  if (status !== 'CONNECTED' || !client) {
+    throw new Error('WhatsApp client is not connected. Please scan the QR code first.');
+  }
+
+  let cleanNumber = String(toPhone).replace(/\D/g, '');
+  if (!cleanNumber.startsWith('91') && cleanNumber.length === 10) {
+    cleanNumber = '91' + cleanNumber;
+  }
+  
+  if (cleanNumber.length < 10) {
+    throw new Error('Invalid phone number for WhatsApp message.');
+  }
+
+  const chatId = cleanNumber + '@c.us';
+  if (!fs.existsSync(mediaPath)) {
+    throw new Error(`Media file not found at ${mediaPath}`);
+  }
+  const media = MessageMedia.fromFilePath(mediaPath);
+  const options = caption ? { caption } : {};
+  const response = await client.sendMessage(chatId, media, options);
+  return response;
+}
+
 module.exports = {
   initializeWhatsApp,
   getWhatsAppStatus,
