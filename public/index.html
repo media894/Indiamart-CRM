@@ -2121,10 +2121,9 @@ function setupNotificationBell() {
       brandBtn.rel = 'noopener noreferrer';
       brandBtn.className = 'odd-brand-btn';
       brandBtn.title = 'Visit Odd Infotech Website (https://oddinfotech.com/)';
-      brandBtn.style.cssText = 'display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.07); border:1px solid var(--border); padding:5px 12px; border-radius:20px; text-decoration:none; color:var(--text); font-size:12px; font-weight:600; margin-right:12px; transition:all 0.2s; box-shadow:0 2px 6px rgba(0,0,0,0.12); flex-shrink:0;';
+      brandBtn.style.cssText = 'display:inline-flex; align-items:center; text-decoration:none; margin-right:12px; flex-shrink:0; transition:transform 0.2s, opacity 0.2s;';
       brandBtn.innerHTML = `
-        <img src="/assets/oddinfotech_logo.png" alt="Odd Infotech" style="height:18px; width:auto; object-fit:contain; background:#ffffff; border-radius:4px; padding:1px;" />
-        <span>Odd Infotech ↗</span>
+        <img src="/assets/oddinfotech_logo.png" alt="Odd Infotech Logo" style="height:32px; width:auto; max-width:140px; object-fit:contain; background:#ffffff; border-radius:6px; padding:3px; box-shadow:0 2px 6px rgba(0,0,0,0.2); cursor:pointer;" />
       `;
       topbar.appendChild(brandBtn);
     }
