@@ -220,7 +220,6 @@ async function reconnectWhatsApp(clearSession = true) {
 
   // Restart client initialization after a short delay
   setTimeout(() => initializeWhatsApp(), 1000);
->>>>>>> 3122eae (Add WhatsApp PDF portfolio auto-send feature)
 }
 
 async function reconnectWhatsApp(clearSession = true) {
