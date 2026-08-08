@@ -11,7 +11,7 @@ const imaps = require('imap-simple');
 const simpleParser = require('mailparser').simpleParser;
 const xlsx = require('xlsx');
 const { MongoClient } = require('mongodb');
-const { initializeWhatsApp, getWhatsAppStatus, disconnectWhatsApp, sendWhatsAppMessage, reconnectWhatsApp } = require('./whatsapp');
+const { initializeWhatsApp, getWhatsAppStatus, disconnectWhatsApp, sendWhatsAppMessage, sendWhatsAppMedia, reconnectWhatsApp } = require('./whatsapp');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -2033,6 +2033,17 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
     for (let i = 0; i < messageParts.length; i++) {
       if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
       await sendWhatsAppMessage(lead.phone, messageParts[i]);
+    }
+    // Check if matching PDF exists for lead service and send it
+    const pdfPath = getLeadPdfPath(lead);
+    if (pdfPath && fs.existsSync(pdfPath)) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay before media
+        await sendWhatsAppMedia(lead.phone, pdfPath);
+        console.log(`[WhatsAppTemplate] 📄 Sent PDF portfolio (${path.basename(pdfPath)}) to ${lead.phone}`);
+      } catch (pdfErr) {
+        console.error(`[WhatsAppTemplate] ⚠️ Failed to send PDF (${path.basename(pdfPath)}) to ${lead.phone}:`, pdfErr.message);
+      }
     }
     
     // Log the message to the activity stream

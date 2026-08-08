@@ -220,6 +220,37 @@ async function reconnectWhatsApp(clearSession = true) {
 
   // Restart client initialization after a short delay
   setTimeout(() => initializeWhatsApp(), 1000);
+>>>>>>> 3122eae (Add WhatsApp PDF portfolio auto-send feature)
+}
+
+async function reconnectWhatsApp(clearSession = true) {
+  console.log(`[WhatsApp] Force reconnecting. Clear session: ${clearSession}`);
+  status = 'DISCONNECTED';
+  qrCodeData = null;
+
+  if (client) {
+    try {
+      await client.destroy();
+    } catch (e) {
+      console.error('[WhatsApp] Error destroying client on reconnect:', e.message);
+    }
+    client = null;
+  }
+
+  if (clearSession) {
+    const sessionPath = path.join(__dirname, '../.wwebjs_auth');
+    try {
+      if (fs.existsSync(sessionPath)) {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+        console.log('[WhatsApp] Deleted session auth folder successfully.');
+      }
+    } catch (err) {
+      console.error('[WhatsApp] Failed to delete session auth folder:', err.message);
+    }
+  }
+
+  // Restart client initialization after a short delay
+  setTimeout(() => initializeWhatsApp(), 1000);
 }
 
 module.exports = {
@@ -227,5 +258,6 @@ module.exports = {
   getWhatsAppStatus,
   disconnectWhatsApp,
   sendWhatsAppMessage,
+  sendWhatsAppMedia,
   reconnectWhatsApp
 };
