@@ -2153,12 +2153,8 @@ async function executeIndiaMartSync(settings) {
 
   const data = await loadData();
   const end = new Date();
-  let start;
-  if (data.lastSyncTime) {
-    start = new Date(new Date(data.lastSyncTime).getTime() - 30 * 60 * 1000); // overlap 30 mins
-  } else {
-    start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days fallback
-  }
+  // Always check back 24 hours during sync to ensure no leads/call enquiries are missed
+  const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const url = `https://mapi.indiamart.com/wservce/crm/crmListing/v2/?glusr_crm_key=${apiKey}&start_time=${encodeURIComponent(fmt(start))}&end_time=${encodeURIComponent(fmt(end))}`;
   console.log('[IndiaMART] Fetching:', url);
