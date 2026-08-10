@@ -771,6 +771,7 @@ tr:hover td{background:rgba(255,255,255,0.03)}
     <div style="font-size:13.5px;color:var(--text);margin-bottom:14px;background:var(--bg);padding:12px;border-radius:var(--radius);line-height:1.6;border:1px solid var(--border)" id="ve-meta"></div>
     <div class="field"><label style="font-weight:600">Subject</label><input id="ve-subject" readonly style="background:var(--bg);color:var(--text);border:1px solid var(--border);opacity:0.9"></div>
     <div class="field"><label style="font-weight:600">Message Body</label><textarea id="ve-body" readonly style="min-height:220px;background:var(--bg);color:var(--text);border:1px solid var(--border);resize:vertical;opacity:0.9;font-family:inherit;line-height:1.6"></textarea></div>
+    <div id="ve-attachments" style="margin-top:12px;display:none;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn primary" id="ve-btn-reply">Reply to Lead</button>
       <button class="btn" onclick="closeModal('view-email')">Close</button>
@@ -2339,6 +2340,25 @@ function viewEmailDetail(emailId) {
   
   document.getElementById('ve-subject').value = e.subject || '(No Subject)';
   document.getElementById('ve-body').value = e.body || '';
+  
+  const attContainer = document.getElementById('ve-attachments');
+  if (e.attachments && e.attachments.length > 0) {
+    attContainer.style.display = 'block';
+    attContainer.innerHTML = `
+      <label style="font-weight:600;display:block;margin-bottom:6px;font-size:13px;color:var(--text)">Attachments (${e.attachments.length})</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${e.attachments.map(att => `
+          <a href="${att.path || '#'}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:var(--card);padding:6px 12px;border-radius:6px;border:1px solid var(--border);color:var(--primary);text-decoration:none;font-size:12.5px;font-weight:500">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ${att.filename || 'Attachment'}
+          </a>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    attContainer.style.display = 'none';
+    attContainer.innerHTML = '';
+  }
   
   const replyBtn = document.getElementById('ve-btn-reply');
   if (e.direction === 'received' && l.id) {

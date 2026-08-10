@@ -918,20 +918,42 @@ function getGraphicDesignServiceType(lead) {
   if (/(business\s*card|visiting\s*card)/i.test(haystack)) return 'businessCard';
   if (/(package|packaging|label|sticker)/i.test(haystack)) return 'packaging';
   if (/(social\s*media|letterhead|invitation)/i.test(haystack)) return 'graphic';
-  return 'graphic';
+  return null;
 }
 
 function getLeadPdfPath(lead) {
-  const serviceKey = getGraphicDesignServiceType(lead);
+  const mainService = getLeadServiceKey(lead);
+  const subService = getGraphicDesignServiceType(lead);
   const pdfDir = path.join(__dirname, 'pdfs');
   
-  if (serviceKey === 'logo') {
-    return path.join(pdfDir, 'Logo Portfolio.pdf');
-  } else if (serviceKey === 'image_editing') {
-    return path.join(pdfDir, 'Image Editing Services Portfolio.pdf');
-  } else if (['brochure', 'catalogue', 'flyer', 'banner', 'graphic'].includes(serviceKey)) {
-    return path.join(pdfDir, 'Graphic Designing Portfolio.pdf');
+  let targetPath = null;
+  
+  // 1. Logo Design -> Logo Portfolio.pdf
+  if (mainService === 'logo' || subService === 'logo') {
+    targetPath = path.join(pdfDir, 'Logo Portfolio.pdf');
+  } 
+  // 2. Image Editing -> Image Editing Services Portfolio.pdf
+  else if (mainService === 'imageediting' || subService === 'image_editing') {
+    targetPath = path.join(pdfDir, 'Image Editing Services Portfolio.pdf');
+  } 
+  // 3. Graphic Design & Printing / Vector Artwork -> Graphic Designing Portfolio.pdf
+  else if (
+    mainService === 'graphic' || 
+    mainService === 'tshirtprinting' || 
+    mainService === 'vector' ||
+    (subService && ['brochure', 'catalogue', 'flyer', 'banner', 'menu', 'brandIdentity', 'poster', 'businessCard', 'packaging', 'graphic'].includes(subService))
+  ) {
+    targetPath = path.join(pdfDir, 'Graphic Designing Portfolio.pdf');
+  } 
+  // 4. For non-graphic services (Data Entry, Live Chat, AI/ML, Embroidery, etc.) -> DO NOT SEND PDF
+  else {
+    return null;
   }
+
+  if (targetPath && fs.existsSync(targetPath)) {
+    return targetPath;
+  }
+
   return null;
 }
 
@@ -1714,11 +1736,14 @@ async function triggerWhatsAppAutoResponse(lead, settings) {
     
     // Check if matching PDF exists for lead service and send it
     const pdfPath = getLeadPdfPath(lead);
+    const attachments = [];
     if (pdfPath && fs.existsSync(pdfPath)) {
       try {
         await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay before media
         await sendWhatsAppMedia(lead.phone, pdfPath);
-        console.log(`[WhatsAppAutoResponse] 📄 Sent PDF portfolio (${path.basename(pdfPath)}) to ${lead.phone}`);
+        const fileName = path.basename(pdfPath);
+        attachments.push({ filename: fileName, path: '/assets/' + fileName });
+        console.log(`[WhatsAppAutoResponse] 📄 Sent PDF portfolio (${fileName}) to ${lead.phone}`);
       } catch (pdfErr) {
         console.error(`[WhatsAppAutoResponse] ⚠️ Failed to send PDF (${path.basename(pdfPath)}) to ${lead.phone}:`, pdfErr.message);
       }
@@ -1744,7 +1769,8 @@ async function triggerWhatsAppAutoResponse(lead, settings) {
       sentAt: new Date().toISOString(),
       channel: 'whatsapp',
       serviceKey,
-      autoResponse: true
+      autoResponse: true,
+      attachments
     });
     
     // Update lead status to WhatsApp Sent
@@ -2062,11 +2088,14 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
     }
     // Check if matching PDF exists for lead service and send it
     const pdfPath = getLeadPdfPath(lead);
+    const attachments = [];
     if (pdfPath && fs.existsSync(pdfPath)) {
       try {
         await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay before media
         await sendWhatsAppMedia(lead.phone, pdfPath);
-        console.log(`[WhatsAppTemplate] 📄 Sent PDF portfolio (${path.basename(pdfPath)}) to ${lead.phone}`);
+        const fileName = path.basename(pdfPath);
+        attachments.push({ filename: fileName, path: '/assets/' + fileName });
+        console.log(`[WhatsAppTemplate] 📄 Sent PDF portfolio (${fileName}) to ${lead.phone}`);
       } catch (pdfErr) {
         console.error(`[WhatsAppTemplate] ⚠️ Failed to send PDF (${path.basename(pdfPath)}) to ${lead.phone}:`, pdfErr.message);
       }
@@ -2089,7 +2118,8 @@ app.post('/api/whatsapp/send-template', requireAutomationOn, async (req, res) =>
       body: messageText,
       direction: 'sent',
       sentAt: new Date().toISOString(),
-      channel: 'whatsapp'
+      channel: 'whatsapp',
+      attachments
     });
     
     // Update lead status to WhatsApp Sent
