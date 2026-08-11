@@ -323,11 +323,14 @@ tr:hover td{background:rgba(255,255,255,0.03)}
 .act-time{font-size:10.5px;color:var(--hint);margin-top:4px}
 
 /* Notifications styles */
-.notif-bell-container{position:relative;margin-left:auto;display:flex;align-items:center}
-.notif-bell-btn{background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.notif-bell-container{position:relative;margin-left:auto;display:flex;align-items:center;gap:12px}
+.topbar-logo-badge{display:flex;align-items:center;justify-content:center;background:#ffffff;padding:3px 8px;border-radius:6px;height:32px;box-shadow:0 2px 6px rgba(0,0,0,0.18);transition:transform .15s ease}
+.topbar-logo-badge:hover{transform:scale(1.03)}
+.topbar-logo-img{height:24px;max-width:140px;object-fit:contain;display:block}
+.notif-bell-btn{position:relative;background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
 .notif-bell-btn:hover{background:var(--bg);color:var(--text)}
 .notif-bell-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.notif-badge{position:absolute;top:0;right:0;background:var(--red);color:#fff;font-size:10px;font-weight:600;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--surface)}
+.notif-badge{position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:10px;font-weight:600;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--surface)}
 .notif-dropdown{display:none;position:absolute;top:100%;right:0;margin-top:8px;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:999;max-height:400px;overflow-y:auto}
 .notif-dropdown.open{display:block;animation:fadein .15s ease}
 .notif-dropdown-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:600}
@@ -2119,8 +2122,10 @@ function setupNotificationBell() {
     const bell = document.createElement('div');
     bell.className = 'notif-bell-container';
     bell.innerHTML = `
-      <button class="notif-bell-btn" onclick="toggleNotifDropdown(event)">
-  
+      <div class="topbar-logo-badge" title="ODD INFOTECH">
+        <img src="assets/oddinfotech_logo.png" alt="ODD INFOTECH Logo" class="topbar-logo-img">
+      </div>
+      <button class="notif-bell-btn" onclick="toggleNotifDropdown(event)" title="Notifications">
         <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="notif-badge" style="display:none">0</span>
       </button>
