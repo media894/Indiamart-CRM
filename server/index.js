@@ -37,7 +37,7 @@ const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, '../public/assets');
 let imapSyncInProgress = false;
 let lastAutoEmailSentAt = 0; // timestamp to track rate limiting
-const AUTO_EMAIL_DELAY_MS = 20000; // 20 seconds between emails = 3 emails per minute (safe Gmail rate limit)
+const AUTO_EMAIL_DELAY_MS = 1000; // Fast 1-second instant auto response
 
 // ─── Live Activity Stream (SSE) ───────────────────────────────────────────────
 const activityLog = []; // in-memory activity history (last 200)
@@ -2321,7 +2321,7 @@ async function executeIndiaMartSync(settings) {
       }
     }
     
-    if (settings.autoResponseEnabled && lead.queryType === 'BL' && lead.phone && !hasWhatsAppAutoResponseForLead(data, lead)) {
+    if (settings.autoResponseEnabled && lead.phone && !hasWhatsAppAutoResponseForLead(data, lead)) {
       queuedWhatsAppAutoResponses.push(lead);
     }
   }
@@ -2360,7 +2360,7 @@ async function executeIndiaMartSync(settings) {
   }
 
   let lastAutoWhatsappSentAt = 0;
-  const AUTO_WHATSAPP_DELAY_MS = 10000;
+  const AUTO_WHATSAPP_DELAY_MS = 1000;
   if (queuedWhatsAppAutoResponses.length > 0) {
     console.log(`[WhatsAppAutoResponse] Queuing ${queuedWhatsAppAutoResponses.length} WhatsApp messages with ${AUTO_WHATSAPP_DELAY_MS / 1000}s delay...`);
     (async () => {
