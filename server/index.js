@@ -2321,7 +2321,7 @@ async function executeIndiaMartSync(settings) {
       }
     }
     
-    if (settings.autoResponseEnabled && lead.phone && !hasWhatsAppAutoResponseForLead(data, lead)) {
+    if (settings.autoResponseEnabled && lead.queryType === 'BL' && lead.phone && !hasWhatsAppAutoResponseForLead(data, lead)) {
       queuedWhatsAppAutoResponses.push(lead);
     }
   }
