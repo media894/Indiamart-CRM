@@ -1,4 +1,12 @@
 require('dotenv').config();
+
+process.on('uncaughtException', (err) => {
+  console.error('[Global Exception Handler]', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Global Rejection Handler]', reason);
+});
+
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -22,13 +30,14 @@ let client = null;
 
 async function connectToMongo() {
   try {
-    client = new MongoClient(MONGODB_URI);
+    client = new MongoClient(MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
     await client.connect();
     db = client.db();
     console.log('✓ Connected to MongoDB');
   } catch (err) {
-    console.error('❌ Failed to connect to MongoDB:', err);
-    process.exit(1);
+    console.error('⚠️ Failed to connect to MongoDB:', err.message || err);
+    console.log('⚠️ Falling back to local JSON data file mode (data.json)');
+    db = null;
   }
 }
 

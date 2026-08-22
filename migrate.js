@@ -2,7 +2,8 @@ const fs = require('fs');
 const { MongoClient } = require('mongodb');
 const path = require('path');
 
-const uri = "mongodb+srv://natasha_db_user:wuLgB3zfeobqQ8ni@mediaodd.wwilbgn.mongodb.net/indiamart_crm?retryWrites=true&w=majority";
+require('dotenv').config();
+const uri = process.env.MONGODB_URI || "mongodb+srv://natasha_db_user:Socialmediaodd2026@mediaodd.wwilbgn.mongodb.net/indiamart_crm?retryWrites=true&w=majority";
 const DATA_FILE = path.join(__dirname, 'server', 'data.json');
 const SETTINGS_FILE = path.join(__dirname, 'server', 'settings.json');
 
