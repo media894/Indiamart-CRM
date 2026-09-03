@@ -176,7 +176,13 @@ async function saveData(data) {
     console.error('Error saving data to MongoDB:', err);
   }
 }
-function normalizeEmail(email) { return String(email || '').trim().toLowerCase(); }
+function normalizeEmail(email) {
+  if (!email) return '';
+  const str = String(email).trim().toLowerCase();
+  const match = str.match(/<([^>]+)>/);
+  if (match) return match[1].trim().toLowerCase();
+  return str;
+}
 function normalizePhone(phone) { return String(phone || '').replace(/[^\d]/g, ''); }
 
 function getLikelyEmailTypo(domain) {
@@ -321,45 +327,30 @@ function hasAutoResponseForLead(data, lead) {
     return true;
   }
 
-  const serviceKey = getLeadServiceKey(lead);
+  if (lead.emailSent || lead.lastEmailSentAt) {
+    return true;
+  }
 
   return (data.emails || []).some(email => {
-    if (!email.autoResponse) return false;
-    
-    const isSameEmail = (normalizeEmail(email.to) === emailKey);
-    if (!isSameEmail) return false;
-
-    // Resolve service key with legacy fallback
-    let emailServiceKey = email.serviceKey;
-    if (!emailServiceKey) {
-      const originalLead = (data.leads || []).find(l => l.id === email.leadId);
-      if (originalLead) {
-        emailServiceKey = getLeadServiceKey(originalLead);
-      } else if (email.leadSnapshot) {
-        emailServiceKey = getLeadServiceKey(email.leadSnapshot);
-      } else {
-        // Legacy email record with no service details — treat as matched to avoid duplicate
-        return true;
-      }
-    }
-
-    return emailServiceKey === serviceKey;
+    if (email.direction !== 'sent' && !email.autoResponse) return false;
+    const toEmail = normalizeEmail(email.to);
+    return toEmail === emailKey;
   });
 }
 function hasWhatsAppAutoResponseForLead(data, lead) {
   const phoneKey = normalizePhone(lead.phone);
   if (!phoneKey) return true;
 
-  const serviceKey = getLeadServiceKey(lead);
+  if (lead.whatsappSent || lead.lastWhatsappSentAt) {
+    return true;
+  }
 
   return (data.emails || []).some(msg => {
     if (msg.channel !== 'whatsapp') return false;
 
     const msgPhone = normalizePhone(msg.to);
-    const isSamePhone = (msgPhone === phoneKey || msgPhone.endsWith(phoneKey) || phoneKey.endsWith(msgPhone));
-    if (!isSamePhone) return false;
-
-    return msg.serviceKey === serviceKey || (msg.subject && msg.subject.includes(serviceKey));
+    const isSamePhone = (msgPhone === phoneKey || (msgPhone.length >= 10 && phoneKey.length >= 10 && (msgPhone.endsWith(phoneKey) || phoneKey.endsWith(msgPhone))));
+    return isSamePhone;
   });
 }
 async function loadSettings() {
@@ -392,11 +383,13 @@ async function loadSettings() {
   if (s.indiamartSyncEnabled === undefined) s.indiamartSyncEnabled = true;
   if (!s.autoResponseSubject) s.autoResponseSubject = 'Thank you for your enquiry!';
   if (!s.autoResponseBody) s.autoResponseBody = 'Hi {{name}},\n\nThank you for your enquiry about {{product}}.\n\nWe will get back to you shortly.\n\nBest regards';
-  if (!s.whatsappTemplates) {
-    s.whatsappTemplates = {
-      default: "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}.\n\nKindly please share more details about your requirements. Let me know the suitable time to talk to you."
-    };
+  if (!s.whatsappTemplates || typeof s.whatsappTemplates !== 'object') {
+    s.whatsappTemplates = {};
   }
+  if (!s.whatsappTemplates.default) {
+    s.whatsappTemplates.default = "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}.\n\nKindly please share more details about your requirements. Let me know the suitable time to talk to you.";
+  }
+
 
   // Persist merged settings
   if (!db) {
@@ -1491,24 +1484,23 @@ function getGreetingEmailHtml(lead) {
 
 async function triggerAutoResponse(lead, settings, data) {
   const emailKey = normalizeEmail(lead.email);
-  const serviceKey = getLeadServiceKey(lead);
-  const sendKey = emailKey;
+  if (!emailKey) return { skipped: true, reason: 'no_email' };
 
-  const freshData = await loadData();
-  if (!freshData.emails) freshData.emails = [];
-  if (hasAutoResponseForLead(freshData, lead)) {
-    console.log(`[AutoResponse] Skipped for ${lead.name} - autoresponse already exists.`);
-    return { skipped: true, reason: 'already_sent' };
-  }
-
-  if (sendingEmails.has(sendKey)) {
+  if (sendingEmails.has(emailKey)) {
     console.log(`[AutoResponse] Skipped for ${lead.name} - autoresponse already sending right now.`);
     return { skipped: true, reason: 'already_sending' };
   }
 
-  sendingEmails.add(sendKey);
+  sendingEmails.add(emailKey);
 
   try {
+    const freshData = await loadData();
+    if (!freshData.emails) freshData.emails = [];
+    if (hasAutoResponseForLead(freshData, lead)) {
+      console.log(`[AutoResponse] Skipped for ${lead.name} - autoresponse already exists.`);
+      return { skipped: true, reason: 'already_sent' };
+    }
+
     const emailValidation = await validateEmail(lead.email);
     if (!emailValidation.valid) {
       const leadIndex = freshData.leads.findIndex(l => l.id === lead.id || normalizeEmail(l.email) === normalizeEmail(lead.email));
@@ -1542,8 +1534,6 @@ async function triggerAutoResponse(lead, settings, data) {
     const bodyHtml = getGreetingEmailHtml(lead);
     const bodyText = getGreetingEmailText(lead);
 
-    // Instead of relying on the passed 'data' object which might be stale in background,
-    // we will load a fresh copy to save the email record at the end.
     const emailRecord = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
       leadId: lead.id,
@@ -1639,7 +1629,7 @@ async function triggerAutoResponse(lead, settings, data) {
     freshData.emails.push(emailRecord);
     await saveData(freshData);
   } finally {
-    sendingEmails.delete(sendKey);
+    sendingEmails.delete(emailKey);
   }
 }
 
@@ -1659,24 +1649,35 @@ async function processPendingAutoResponses(settings) {
     const createdTime = lead.createdAt || lead.updatedAt;
     if (!createdTime || createdTime < twelveHoursAgo) return false;
 
-    // Check if we already emailed them for this specific service
+    // Check if we already emailed them
     const alreadyEmailed = hasAutoResponseForLead(data, lead);
     return !alreadyEmailed;
   });
 
   if (pendingLeads.length > 0) {
     console.log(`[PendingAutoResponse] Found ${pendingLeads.length} leads requiring autoresponse.`);
+    const processedEmailKeys = new Set();
     for (let i = 0; i < pendingLeads.length; i++) {
       const lead = pendingLeads[i];
+      const emailKey = normalizeEmail(lead.email);
+      if (processedEmailKeys.has(emailKey)) continue;
+
       if (i > 0) {
         await new Promise(resolve => setTimeout(resolve, AUTO_EMAIL_DELAY_MS));
       }
       
       const currentSettings = await loadSettings();
       if (!currentSettings.autoResponseEnabled) break;
+
+      const freshData = await loadData();
+      if (hasAutoResponseForLead(freshData, lead)) {
+        processedEmailKeys.add(emailKey);
+        continue;
+      }
       
       try {
-        await triggerAutoResponse(lead, settings, data);
+        await triggerAutoResponse(lead, settings, freshData);
+        processedEmailKeys.add(emailKey);
         console.log(`[PendingAutoResponse] ✅ Sent autoresponse to ${lead.email}`);
       } catch (e) {
         console.error(`[PendingAutoResponse] ❌ Failed to send to ${lead.email}:`, e.message);
@@ -2241,6 +2242,8 @@ async function executeIndiaMartSync(settings) {
   const existing = new Set(data.leads.map(l => l.indiamartId).filter(Boolean));
   const queuedAutoResponses = [];
   const queuedWhatsAppAutoResponses = [];
+  const queuedEmailKeys = new Set();
+  const queuedWhatsAppPhones = new Set();
   let added = 0;
 
   const rawLeads = json.RESPONSE || json.response || json.DATA || json.data || json.leads || (Array.isArray(json) ? json : []);
@@ -2302,7 +2305,10 @@ async function executeIndiaMartSync(settings) {
       updatedAt: new Date().toISOString()
     };
 
-    const alreadyEmailed = hasAutoResponseForLead(data, lead);
+    const emailKey = normalizeEmail(lead.email);
+    const phoneKey = normalizePhone(lead.phone);
+
+    const alreadyEmailed = hasAutoResponseForLead(data, lead) || (emailKey && queuedEmailKeys.has(emailKey));
     if (alreadyEmailed) {
       lead.clientStatus = 'Auto-Skipped';
     }
@@ -2322,16 +2328,19 @@ async function executeIndiaMartSync(settings) {
     const phoneOk = true;
     if (settings.autoResponseEnabled && emailVal.valid && lead.email && phoneOk && !alreadyEmailed) {
       queuedAutoResponses.push(lead);
+      if (emailKey) queuedEmailKeys.add(emailKey);
     } else if (settings.autoResponseEnabled) {
       if (alreadyEmailed) {
-        console.log(`[AutoResponse] Skipped for ${lead.name} — Mail already sent for this service`);
+        console.log(`[AutoResponse] Skipped for ${lead.name} — Mail already sent for this lead/email`);
       } else {
         console.log(`[AutoResponse] Skipped for ${lead.name} — phone valid: ${phoneVal.valid}, email valid: ${emailVal.valid}`);
       }
     }
     
-    if (settings.autoResponseEnabled && lead.queryType === 'BL' && lead.phone && !hasWhatsAppAutoResponseForLead(data, lead)) {
+    const alreadyWhatsApped = hasWhatsAppAutoResponseForLead(data, lead) || (phoneKey && queuedWhatsAppPhones.has(phoneKey));
+    if (settings.autoResponseEnabled && lead.queryType === 'BL' && lead.phone && !alreadyWhatsApped) {
       queuedWhatsAppAutoResponses.push(lead);
+      if (phoneKey) queuedWhatsAppPhones.add(phoneKey);
     }
   }
 
@@ -2357,7 +2366,12 @@ async function executeIndiaMartSync(settings) {
           break;
         }
         try {
-          await triggerAutoResponse(lead, settings, data);
+          const freshData = await loadData();
+          if (hasAutoResponseForLead(freshData, lead)) {
+            console.log(`[AutoResponse] Skipped queued autoresponse for ${lead.email} — already sent.`);
+            continue;
+          }
+          await triggerAutoResponse(lead, settings, freshData);
           lastAutoEmailSentAt = Date.now();
           console.log(`[AutoResponse] ✅ Sent ${i + 1}/${queuedAutoResponses.length} to ${lead.email}`);
         } catch (e) {
@@ -3253,8 +3267,9 @@ app.get('/api/activity', (req, res) => {
   } else {
     console.log('⚠️ MONGODB_URI not set. Running in local file fallback mode.');
   }
-  app.listen(PORT, () => {
-    console.log(`\n🚀  IndiaMART CRM running on port ${PORT}\n`);
+  const HOST = process.env.HOST || '0.0.0.0';
+  app.listen(PORT, HOST, () => {
+    console.log(`\n🚀  IndiaMART CRM running at http://localhost:${PORT} & http://200.97.165.171:${PORT}\n`);
     initializeWhatsApp();
   });
 })();

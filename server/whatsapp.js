@@ -184,42 +184,15 @@ async function sendWhatsAppMessage(toPhone, messageText) {
       errMsg.includes('Protocol error') || 
       errMsg.includes('Execution context') || 
       errMsg.includes('Session closed') ||
-      errMsg.includes('Target closed')
+      errMsg.includes('Target closed') ||
+      errMsg.includes('evaluate') ||
+      errMsg.includes('reading')
     ) {
       handleCriticalFailure().catch(e => console.error('[WhatsApp] Error handling critical failure:', e.message));
+      throw new Error('WhatsApp browser connection dropped. Please reconnect or scan QR code again.');
     }
     throw err;
   }
-}
-
-async function reconnectWhatsApp(clearSession = true) {
-  console.log(`[WhatsApp] Force reconnecting. Clear session: ${clearSession}`);
-  status = 'DISCONNECTED';
-  qrCodeData = null;
-
-  if (client) {
-    try {
-      await client.destroy();
-    } catch (e) {
-      console.error('[WhatsApp] Error destroying client on reconnect:', e.message);
-    }
-    client = null;
-  }
-
-  if (clearSession) {
-    const sessionPath = path.join(__dirname, '../.wwebjs_auth');
-    try {
-      if (fs.existsSync(sessionPath)) {
-        fs.rmSync(sessionPath, { recursive: true, force: true });
-        console.log('[WhatsApp] Deleted session auth folder successfully.');
-      }
-    } catch (err) {
-      console.error('[WhatsApp] Failed to delete session auth folder:', err.message);
-    }
-  }
-
-  // Restart client initialization after a short delay
-  setTimeout(() => initializeWhatsApp(), 1000);
 }
 
 async function reconnectWhatsApp(clearSession = true) {
@@ -272,8 +245,25 @@ async function sendWhatsAppMedia(toPhone, mediaPath, caption = '') {
   }
   const media = MessageMedia.fromFilePath(mediaPath);
   const options = caption ? { caption } : {};
-  const response = await client.sendMessage(chatId, media, options);
-  return response;
+  try {
+    const response = await client.sendMessage(chatId, media, options);
+    return response;
+  } catch (err) {
+    const errMsg = err.message || '';
+    if (
+      errMsg.includes('detached Frame') || 
+      errMsg.includes('Protocol error') || 
+      errMsg.includes('Execution context') || 
+      errMsg.includes('Session closed') ||
+      errMsg.includes('Target closed') ||
+      errMsg.includes('evaluate') ||
+      errMsg.includes('reading')
+    ) {
+      handleCriticalFailure().catch(e => console.error('[WhatsApp] Error handling critical failure:', e.message));
+      throw new Error('WhatsApp browser connection dropped. Please reconnect or scan QR code again.');
+    }
+    throw err;
+  }
 }
 
 module.exports = {

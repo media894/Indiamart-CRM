@@ -2428,14 +2428,16 @@
       async function loadWhatsAppTemplates() {
         try {
           const s = await fetch(`${API}/settings`).then(r => r.json());
-          if (s && s.whatsappTemplates) {
-            const el = document.getElementById('wa-tpl-default');
-            if (el) el.value = s.whatsappTemplates.default || '';
+          const el = document.getElementById('wa-tpl-default');
+          const defaultMsg = "Hi {{name}},\n\nI am Natasha on behalf of Odd infotech and I got your enquiry in indiamart regarding {{product}}. Kindly please share more details about your requirements. Let me know the suitable time to talk to you.";
+          if (el) {
+            el.value = (s && s.whatsappTemplates && s.whatsappTemplates.default) ? s.whatsappTemplates.default : defaultMsg;
           }
         } catch (err) {
           console.error('Failed to load WhatsApp template:', err);
         }
       }
+
 
       async function saveWhatsAppTemplates() {
         try {
