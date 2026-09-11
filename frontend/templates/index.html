@@ -1778,6 +1778,13 @@
           </svg>
           WhatsApp Link
         </button>
+        <button class="nav-item" onclick="nav('pricing',this)">
+          <svg viewBox="0 0 24 24" style="fill:none; stroke:currentColor; stroke-width:2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+          Price Sheet
+        </button>
+
 
         <!-- Mini Video Thumbnail Card Widget below WhatsApp Link -->
         <div onclick="openVideoModal()" style="margin-top:14px; padding:10px; border-radius:12px; background:linear-gradient(135deg, rgba(225, 29, 72, 0.18), rgba(28, 25, 23, 0.8)); border:1px solid rgba(225, 29, 72, 0.35); cursor:pointer; transition:all 0.2s ease; position:relative; overflow:hidden;" onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='#f43f5e'; this.style.boxShadow='0 8px 20px rgba(225, 29, 72, 0.25)';" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='rgba(225, 29, 72, 0.35)'; this.style.boxShadow='none';">
@@ -2111,6 +2118,60 @@
         </div>
       </div>
 
+      <!-- ── Price Sheet view ── -->
+      <div class="view" id="view-pricing">
+        <div class="topbar">
+          <h2>Product Pricing & Rates Sheet</h2>
+        </div>
+        <div style="padding:20px 24px; max-width:960px; margin:0 auto;">
+
+          <!-- Upload Price Sheet Card -->
+          <div class="settings-section" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; margin-bottom:24px;">
+            <h3 style="font-size:16px; font-weight:600; margin-bottom:8px; color:var(--text)">📤 Upload New Price Sheet</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5;">
+              Upload your business pricing spreadsheet (Excel <code>.xlsx</code> or <code>.csv</code>) to automatically train your AI WhatsApp Sales Bot with your rates.
+            </p>
+
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <input type="file" id="ps-file-input" accept=".xlsx,.xls,.csv,.json" style="display:none" onchange="uploadPriceSheetFromUI(this)">
+              
+              <button class="btn primary" onclick="document.getElementById('ps-file-input').click()">
+                <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Upload Price Sheet (.xlsx / .csv)
+              </button>
+
+              <a href="/api/sample-price-sheet" class="btn secondary" target="_blank" download="sample_price_sheet.csv" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
+                <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download Sample Template (.csv)
+              </a>
+            </div>
+            <div id="ps-upload-msg" style="font-size:13px; margin-top:14px; font-weight:500; display:none;"></div>
+          </div>
+
+          <!-- Live Pricing Table View -->
+          <div class="settings-section" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+              <h3 style="font-size:16px; font-weight:600; color:var(--text)">📊 Current AI Bot Pricing Matrix</h3>
+              <button class="btn sm secondary" onclick="renderPricing()">Refresh Rates</button>
+            </div>
+
+            <div id="pricing-matrix-table-wrap" style="overflow-x:auto;">
+              <div style="text-align:center; padding:30px; color:var(--muted);">Loading prices...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
 
 
     </main>
@@ -2328,11 +2389,92 @@
         if (view === 'inbox') renderInbox();
         if (view === 'followups') renderFollowups();
         if (view === 'bulkmail') renderBulkMail();
+        if (view === 'pricing') renderPricing();
         if (view === 'whatsapp') {
           startWhatsAppStatusPolling();
           loadWhatsAppTemplates();
         }
       }
+
+      async function renderPricing() {
+        const wrap = document.getElementById('pricing-matrix-table-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted);">Loading prices...</div>';
+
+        try {
+          const matrix = await fetch(`${API}/pricing`).then(r => r.json());
+          if (!matrix || Object.keys(matrix).length === 0) {
+            wrap.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted);">No price sheet found. Upload one above!</div>';
+            return;
+          }
+
+          let html = `
+            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:13px;">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border); color:var(--muted);">
+                  <th style="padding:10px 12px;">Service</th>
+                  <th style="padding:10px 12px;">Unit</th>
+                  <th style="padding:10px 12px;">Pricing Structure</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          for (const [key, item] of Object.entries(matrix)) {
+            let priceStr = '';
+            if (item.fixed_price !== undefined) {
+              priceStr = `<span style="color:#10b981; font-weight:600;">₹${item.fixed_price}</span> (Fixed)`;
+            } else if (item.tiers && item.tiers.length > 0) {
+              priceStr = item.tiers.map(t => `<span style="display:inline-block; margin-right:12px; background:rgba(255,255,255,0.06); padding:4px 8px; border-radius:6px;">Qty ${t.min_qty}-${t.max_qty === 9999 ? '200+' : t.max_qty}: <strong>₹${t.rate}</strong>/${item.unit || 'pc'}</span>`).join('');
+            }
+
+            html += `
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:12px; font-weight:600; color:var(--text);">${item.title || key}</td>
+                <td style="padding:12px; color:var(--muted);">${item.unit || 'piece'}</td>
+                <td style="padding:12px;">${priceStr}</td>
+              </tr>
+            `;
+          }
+
+          html += `</tbody></table>`;
+          wrap.innerHTML = html;
+        } catch (e) {
+          wrap.innerHTML = `<div style="color:var(--red); padding:20px;">Error loading prices: ${e.message}</div>`;
+        }
+      }
+
+      async function uploadPriceSheetFromUI(input) {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        const msgDiv = document.getElementById('ps-upload-msg');
+        msgDiv.style.display = 'block';
+        msgDiv.style.color = 'var(--muted)';
+        msgDiv.textContent = `Uploading and parsing ${file.name}...`;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          const res = await fetch(`${API}/upload-price-sheet`, {
+            method: 'POST',
+            body: formData
+          }).then(r => r.json());
+
+          if (res.ok) {
+            msgDiv.style.color = '#10b981';
+            msgDiv.textContent = `✓ ${res.message || 'Price sheet uploaded and updated successfully!'}`;
+            renderPricing();
+          } else {
+            msgDiv.style.color = 'var(--red)';
+            msgDiv.textContent = `✗ Upload failed: ${res.detail || 'Unknown error'}`;
+          }
+        } catch (err) {
+          msgDiv.style.color = 'var(--red)';
+          msgDiv.textContent = `✗ Upload failed: ${err.message}`;
+        }
+      }
+
 
       let waStatusTimer = null;
 
