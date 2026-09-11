@@ -31,6 +31,37 @@ def upload_file(file: UploadFile = File(...)):
 
     return {"ok": True, "path": f"/assets/{filename}", "name": filename}
 
+@router.get("/pricing")
+def get_pricing():
+    from backend.services.quote_engine import load_pricing_matrix
+    return load_pricing_matrix()
+
+@router.post("/pricing")
+def update_pricing(matrix: dict):
+    from backend.services.quote_engine import save_pricing_matrix
+    success = save_pricing_matrix(matrix)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to save pricing matrix")
+    return {"ok": True, "message": "Pricing matrix updated successfully", "matrix": matrix}
+
+@router.get("/sample-price-sheet")
+def get_sample_price_sheet():
+    from fastapi.responses import Response
+    csv_content = (
+        "Service,Title,Unit,Rate,Tier1_Rate,Tier2_Rate,Tier3_Rate\n"
+        "tshirtprinting,T-Shirt Printing Services,piece,,220,180,150\n"
+        "tshirtembroidery,T-Shirt Embroidery Services,piece,,250,210,170\n"
+        "logo,Logo Design Services,design,2500,,,\n"
+        "graphic,Graphic Design Services,design,1500,,,\n"
+        "vector,Vector Artwork Redraw,file,600,,,\n"
+        "imageediting,Image Editing Services,image,,45,35,25\n"
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sample_price_sheet.csv"}
+    )
+
 @router.post("/upload-price-sheet")
 def upload_price_sheet(file: UploadFile = File(...)):
     if not file:
@@ -38,7 +69,7 @@ def upload_price_sheet(file: UploadFile = File(...)):
 
     ext = Path(file.filename).suffix.lower()
     if ext not in [".xlsx", ".xls", ".json", ".csv"]:
-        raise HTTPException(status_code=400, detail="File must be an Excel (.xlsx) or JSON (.json) or CSV (.csv) file")
+        raise HTTPException(status_code=400, detail="File must be an Excel (.xlsx/.xls), CSV (.csv), or JSON (.json) file")
 
     server_dir = Path(__file__).resolve().parent.parent.parent / "server"
     server_dir.mkdir(parents=True, exist_ok=True)
@@ -47,7 +78,18 @@ def upload_price_sheet(file: UploadFile = File(...)):
     with open(dest_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    return {"ok": True, "message": f"Price sheet saved successfully as price_sheet{ext}", "filename": f"price_sheet{ext}"}
+    from backend.services.quote_engine import parse_excel_or_csv, load_pricing_matrix
+    if ext in [".xlsx", ".xls", ".csv"]:
+        matrix = parse_excel_or_csv(dest_path)
+    else:
+        matrix = load_pricing_matrix()
+
+    return {
+        "ok": True,
+        "message": f"Price sheet uploaded and parsed successfully as price_sheet{ext}",
+        "matrix": matrix
+    }
+
 
 @router.post("/automation/{mode}")
 def toggle_automation(mode: str):

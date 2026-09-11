@@ -53,6 +53,60 @@ DEFAULT_PRICING = {
     }
 }
 
+def save_pricing_matrix(matrix: Dict[str, Any]) -> bool:
+    try:
+        SERVER_DIR.mkdir(parents=True, exist_ok=True)
+        with open(PRICE_SHEET_JSON, "w", encoding="utf-8") as f:
+            json.dump(matrix, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"[QuoteEngine] Error saving pricing matrix: {e}")
+        return False
+
+def parse_excel_or_csv(file_path: Path) -> Dict[str, Any]:
+    try:
+        if file_path.suffix.lower() == ".csv":
+            df = pd.read_csv(file_path)
+        else:
+            df = pd.read_excel(file_path)
+        
+        matrix = {}
+        for _, row in df.iterrows():
+            service = str(row.get("Service", "")).strip().lower().replace(" ", "")
+            title = str(row.get("Title") or row.get("Service", "")).strip()
+            unit = str(row.get("Unit", "piece")).strip()
+            
+            if not service:
+                continue
+
+            rate = row.get("Rate") or row.get("Price")
+            tier1 = row.get("Tier1_Rate") or row.get("Rate_1_49")
+            tier2 = row.get("Tier2_Rate") or row.get("Rate_50_199")
+            tier3 = row.get("Tier3_Rate") or row.get("Rate_200_plus")
+
+            if pd.notna(tier1) and pd.notna(tier2):
+                matrix[service] = {
+                    "title": title or service.capitalize(),
+                    "unit": unit,
+                    "tiers": [
+                        {"min_qty": 1, "max_qty": 49, "rate": float(tier1)},
+                        {"min_qty": 50, "max_qty": 199, "rate": float(tier2)},
+                        {"min_qty": 200, "max_qty": 9999, "rate": float(tier3 if pd.notna(tier3) else tier2)}
+                    ]
+                }
+            elif pd.notna(rate):
+                matrix[service] = {
+                    "title": title or service.capitalize(),
+                    "unit": unit,
+                    "fixed_price": float(rate)
+                }
+        if matrix:
+            save_pricing_matrix(matrix)
+            return matrix
+    except Exception as e:
+        print(f"[QuoteEngine] Error parsing Excel/CSV: {e}")
+    return load_pricing_matrix()
+
 def load_pricing_matrix() -> Dict[str, Any]:
     if PRICE_SHEET_JSON.exists():
         try:
@@ -62,21 +116,10 @@ def load_pricing_matrix() -> Dict[str, Any]:
             pass
 
     if PRICE_SHEET_EXCEL.exists():
-        try:
-            df = pd.read_excel(PRICE_SHEET_EXCEL)
-            matrix = {}
-            for _, row in df.iterrows():
-                service = str(row.get("Service", "")).strip().lower()
-                rate = float(row.get("Rate", 0))
-                unit = str(row.get("Unit", "item"))
-                if service:
-                    matrix[service] = {"title": service.capitalize(), "unit": unit, "fixed_price": rate}
-            if matrix:
-                return matrix
-        except Exception:
-            pass
+        return parse_excel_or_csv(PRICE_SHEET_EXCEL)
 
     return DEFAULT_PRICING
+
 
 def calculate_quote(service_key: str, quantity: int = 1) -> Dict[str, Any]:
     matrix = load_pricing_matrix()
