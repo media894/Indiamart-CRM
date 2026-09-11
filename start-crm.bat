@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-npm start >> server-out.log 2>> server-err.log
+python run_crm.py >> server-out.log 2>> server-err.log

@@ -1,0 +1,44 @@
+{
+  "tshirtprinting": {
+    "title": "T-Shirt Printing Services",
+    "unit": "piece",
+    "tiers": [
+      {"min_qty": 1, "max_qty": 49, "rate": 220},
+      {"min_qty": 50, "max_qty": 199, "rate": 180},
+      {"min_qty": 200, "max_qty": 9999, "rate": 150}
+    ]
+  },
+  "tshirtembroidery": {
+    "title": "T-Shirt Embroidery Services",
+    "unit": "piece",
+    "tiers": [
+      {"min_qty": 1, "max_qty": 49, "rate": 250},
+      {"min_qty": 50, "max_qty": 199, "rate": 210},
+      {"min_qty": 200, "max_qty": 9999, "rate": 170}
+    ]
+  },
+  "logo": {
+    "title": "Logo Design Services",
+    "unit": "design",
+    "fixed_price": 2500
+  },
+  "graphic": {
+    "title": "Graphic Design Services",
+    "unit": "design",
+    "fixed_price": 1500
+  },
+  "vector": {
+    "title": "Vector Artwork & Redraw Services",
+    "unit": "file",
+    "fixed_price": 600
+  },
+  "imageediting": {
+    "title": "Image Editing Services",
+    "unit": "image",
+    "tiers": [
+      {"min_qty": 1, "max_qty": 49, "rate": 45},
+      {"min_qty": 50, "max_qty": 199, "rate": 35},
+      {"min_qty": 200, "max_qty": 9999, "rate": 25}
+    ]
+  }
+}

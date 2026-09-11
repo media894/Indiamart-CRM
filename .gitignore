@@ -10,3 +10,8 @@ server/server-err.log
 .DS_Store
 Thumbs.db
 scratch/
+.wwebjs_auth/
+__pycache__/
+*.pyc
+*.db
+
